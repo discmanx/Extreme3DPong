@@ -13,6 +13,15 @@ import java.nio.FloatBuffer;
 
 public class Puck {
 
+    public class Vertex {
+        float tu, tv;
+        float nx, ny, nz;
+        float vx, vy, vz;
+        float r, g, b, a;
+
+    }
+    Vertex g_pSphereVertices[];
+
     /* This is the direction: positive Y = up, positive X = right */
     int puckYDirection = 1;
     int puckXDirection = 1;
@@ -99,30 +108,47 @@ public class Puck {
         posY = 0.0f;
         posZ = 0.0f;
 
-        initializeSphere(0.0f, 0.0f, 0.0f, 10.5f, 100);
+        createSphereGeometry(0.0f, 0.0f, 0.0f, 1.5f, 12);
 
         // Initialize the buffers.
         mCubePositions = ByteBuffer
-                .allocateDirect(cubePositionData.length * mBytesPerFloat)
+                .allocateDirect(g_nNumSphereVertices * 3 * mBytesPerFloat)
                 .order(ByteOrder.nativeOrder()).asFloatBuffer();
-        mCubePositions.put(cubePositionData).position(0);
+
+        for (int i = 0; i < g_nNumSphereVertices; i++) {
+            mCubePositions.put(g_pSphereVertices[i].vx);
+            mCubePositions.put(g_pSphereVertices[i].vy);
+            mCubePositions.put(g_pSphereVertices[i].vz);
+        }
 
         mCubeColors = ByteBuffer
-                .allocateDirect(cubeColorData.length * mBytesPerFloat)
+                .allocateDirect(g_nNumSphereVertices * 4 * mBytesPerFloat)
                 .order(ByteOrder.nativeOrder()).asFloatBuffer();
-        mCubeColors.put(cubeColorData).position(0);
+
+        for (int i = 0; i < g_nNumSphereVertices; i++) {
+            mCubeColors.put(g_pSphereVertices[i].r);
+            mCubeColors.put(g_pSphereVertices[i].g);
+            mCubeColors.put(g_pSphereVertices[i].b);
+            mCubeColors.put(g_pSphereVertices[i].a);
+        }
 
         mCubeNormals = ByteBuffer
-                .allocateDirect(cubeNormalData.length * mBytesPerFloat)
+                .allocateDirect(g_nNumSphereVertices * 3 * mBytesPerFloat)
                 .order(ByteOrder.nativeOrder()).asFloatBuffer();
-        mCubeNormals.put(cubeNormalData).position(0);
 
+        for (int i = 0; i < g_nNumSphereVertices; i++) {
+            mCubeNormals.put(g_pSphereVertices[i].nx);
+            mCubeNormals.put(g_pSphereVertices[i].ny);
+            mCubeNormals.put(g_pSphereVertices[i].nz);
+        }
         mCubeTextureCoordinates = ByteBuffer
-                .allocateDirect(
-                        cubeTextureCoordinateData.length * mBytesPerFloat)
+                .allocateDirect(g_nNumSphereVertices * 2 * mBytesPerFloat)
                 .order(ByteOrder.nativeOrder()).asFloatBuffer();
-        mCubeTextureCoordinates.put(cubeTextureCoordinateData).position(0);
 
+        for (int i = 0; i < g_nNumSphereVertices; i++) {
+            mCubeTextureCoordinates.put(g_pSphereVertices[i].tu);
+            mCubeTextureCoordinates.put(g_pSphereVertices[i].tv);
+        }
     }
 
     public int getmPositionHandle() {
@@ -137,81 +163,123 @@ public class Puck {
         return mPointProgramHandle;
     }
 
-    public void initializeSphere(float cx, float cy, float cz, float r, int p) {
-        float PI = (float) Math.PI;
-        float theta1 = 0.0f, theta2 = 0.0f, theta3 = 0.0f;
-        float ex = 0.0f, ey = 0.0f, ez = 0.0f;
-        float px = 0.0f, py = 0.0f, pz = 0.0f;
-        float[] vertices = new float[p * 6 + 6], normals = new float[p * 6 + 6], colours = new float[p * 8 + 8], texCoords = new float[p * 4 + 4];
+    //-----------------------------------------------------------------------------
+    // Name: createSphereGeometry()
+    // Desc: Creates a sphere as an array of vertex data suitable to be fed into a
+    //       OpenGL vertex array. The sphere will be centered at cy, cx, cz with
+    //       radius r, and precision p. Based on a function Written by Paul Bourke.
+    //       http://astronomy.swin.edu.au/~pbourke/opengl/sphere/
+    //-----------------------------------------------------------------------------
+    void createSphereGeometry( float cx, float cy, float cz, float r, int p )
+    {
+        final float PI = 3.14159265358979f;
+        final float TWOPI = 6.28318530717958f;
+        final float PIDIV2 = 1.57079632679489f;
 
-        float test_pi_divided_by_2 = PI / 2;
+        float theta1 = 0.0f;
+        float theta2 = 0.0f;
+        float theta3 = 0.0f;
 
-        if (r < 0)
-            r = -r;
+        float ex = 0.0f;
+        float ey = 0.0f;
+        float ez = 0.0f;
 
-        if (p < 0)
-            p = -p;
+        float px = 0.0f;
+        float py = 0.0f;
+        float pz = 0.0f;
 
-        for (int i = 0; i < p / 2; ++i) {
-            theta1 = i * (PI * 2) / p - (PI / 2);
-            theta2 = (i + 1) * (PI * 2) / p - (PI / 2);
+        float tu  = 0.0f;
+        float tv = 0.0f;
 
-            for (int j = 0; j <= p; ++j) {
-                theta3 = j * (PI * 2) / p;
+        g_nNumSphereVertices = (p/2) * ((p+1)*2);
 
-                ex = (float) (Math.cos(theta2) * Math.cos(theta3));
-                ey = (float) (Math.sin(theta2));
-                ez = (float) (Math.cos(theta2) * Math.sin(theta3));
-                px = cx + r * ex;
-                py = cy + r * ey;
-                pz = cz + r * ez;
+        cubePositionData = new float[g_nNumSphereVertices*3+1];
+        cubeNormalData = new float[g_nNumSphereVertices*3+1];
+        cubeColorData = new float[g_nNumSphereVertices*4+1];
+        cubeTextureCoordinateData = new float[g_nNumSphereVertices*/*3*/2+1];
 
-                vertices[(6 * j) + (0 % 6)] = px;
-                vertices[(6 * j) + (1 % 6)] = py;
-                vertices[(6 * j) + (2 % 6)] = pz;
+        //-------------------------------------------------------------------------
+        // If sphere precision is set to 4, then 20 verts will be needed to
+        // hold the array of GL_TRIANGLE_STRIP(s) and so on...
+        //
+        // Example:
+        //
+        // total_verts = (p/2) * ((p+1)*2)
+        // total_verts = (4/2) * (  5  *2)
+        // total_verts =   2   *  10
+        // total_verts =      20
+        //-------------------------------------------------------------------------
 
-                colours[(8 * j) + (0 % 8)] = 1.0f;
-                colours[(8 * j) + (1 % 8)] = 1.0f;
-                colours[(8 * j) + (2 % 8)] = 1.0f;
-                colours[(8 * j) + (3 % 8)] = 1.0f;
+        g_pSphereVertices = new Vertex[g_nNumSphereVertices + 1];
 
-                normals[(6 * j) + (0 % 6)] = ex;
-                normals[(6 * j) + (1 % 6)] = ey;
-                normals[(6 * j) + (2 % 6)] = ez;
-
-                texCoords[(4 * j) + (0 % 4)] = -(j / (float) p);
-                texCoords[(4 * j) + (1 % 4)] = 2 * (i + 1) / (float) p;
-
-
-                ex = (float) (Math.cos(theta1) * Math.cos(theta3));
-                ey = (float) (Math.sin(theta1));
-                ez = (float) (Math.cos(theta1) * Math.sin(theta3));
-                px = cx + r * ex;
-                py = cy + r * ey;
-                pz = cz + r * ez;
-
-                vertices[(6 * j) + (3 % 6)] = px;
-                vertices[(6 * j) + (4 % 6)] = py;
-                vertices[(6 * j) + (5 % 6)] = pz;
-
-                colours[(8 * j) + (4 % 8)] = 1.0f;
-                colours[(8 * j) + (5 % 8)] = 1.0f;
-                colours[(8 * j) + (6 % 8)] = 1.0f;
-                colours[(8 * j) + (7 % 8)] = 1.0f;
-
-                normals[(6 * j) + (3 % 6)] = ex;
-                normals[(6 * j) + (4 % 6)] = ey;
-                normals[(6 * j) + (5 % 6)] = ez;
-
-                texCoords[(4 * j) + (2 % 4)] = -(j / (float) p);
-                texCoords[(4 * j) + (3 % 4)] = 2 * i / (float) p;
-            }
+        for(int i = 0; i < g_pSphereVertices.length ; i++)
+        {
+            g_pSphereVertices[i] = new Vertex();
         }
 
-        cubePositionData = vertices;
-        cubeColorData = colours;
-        cubeNormalData = normals;
-        cubeTextureCoordinateData = texCoords;
+        // Disallow a negative number for radius.
+        if( r < 0 )
+            r = -r;
+
+        // Disallow a negative number for precision.
+        if( p < 4 )
+            p = 4;
+
+        int k = -1;
+
+        for( int i = 0; i < p/2; ++i )
+        {
+            theta1 = i * TWOPI / p - PIDIV2;
+            theta2 = (i + 1) * TWOPI / p - PIDIV2;
+
+            for( int j = 0; j <= p; ++j )
+            {
+                theta3 = j * TWOPI / p;
+
+                ex = (float)(Math.cos(theta2) * Math.cos(theta3));
+                ey = (float)Math.sin(theta2);
+                ez = (float)(Math.cos(theta2) * Math.sin(theta3));
+                px = cx + r * ex;
+                py = cy + r * ey;
+                pz = cz + r * ez;
+                tu  = -(j/(float)p);
+                tv  = 2*(i+1)/(float)p;
+
+                ++k;
+                setVertData( k, tu, tv, ex, ey, ez, px, py, pz, 1.0f, 1.0f, 1.0f, 1.0f );
+
+                ex = (float)(Math.cos(theta1) * Math.cos(theta3));
+                ey = (float)Math.sin(theta1);
+                ez = (float)(Math.cos(theta1) * Math.sin(theta3));
+                px = cx + r * ex;
+                py = cy + r * ey;
+                pz = cz + r * ez;
+                tu  = -(j/(float)p);
+                tv  = 2*i/(float)p;
+
+                ++k;
+                setVertData( k, tu, tv, ex, ey, ez, px, py, pz, 1.0f, 1.0f, 1.0f, 1.0f );
+            }
+        }
     }
 
+    void setVertData( int index,
+                      float tu, float tv,
+                      float nx, float ny, float nz,
+                      float vx, float vy, float vz,
+                      float cr, float cg, float cb, float ca)
+    {
+        g_pSphereVertices[index].tu = tu;
+        g_pSphereVertices[index].tv = tv;
+        g_pSphereVertices[index].nx = nx;
+        g_pSphereVertices[index].ny = ny;
+        g_pSphereVertices[index].nz = nz;
+        g_pSphereVertices[index].vx = vx;
+        g_pSphereVertices[index].vy = vy;
+        g_pSphereVertices[index].vz = vz;
+        g_pSphereVertices[index].r = cr;
+        g_pSphereVertices[index].g = cg;
+        g_pSphereVertices[index].b = cb;
+        g_pSphereVertices[index].a = ca;
+    }
 }

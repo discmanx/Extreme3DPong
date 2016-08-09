@@ -9,14 +9,10 @@ package com.weakentroll.extreme3dpong;
  *
  **********************************************/
 
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
 
 import java.io.BufferedReader;
@@ -25,7 +21,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.Set;
 
 
 public class MainActivity extends AppCompatActivity
@@ -41,6 +36,7 @@ public class MainActivity extends AppCompatActivity
 	{
 		super.onCreate(savedInstanceState);
 
+		/* TODO: enable bluetooth
         ArrayAdapter mArrayAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, 0);
 
         BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -61,7 +57,7 @@ public class MainActivity extends AppCompatActivity
                 // Add the name and address to an array adapter to show in a ListView
                 mArrayAdapter.add(device.getName() + "\n" + device.getAddress());
             }
-        }
+        }*/
 
         /////mGLSurfaceView = new MyGLSurfaceView(this); // dont need this in main activity since the layout is now using multiple items
 

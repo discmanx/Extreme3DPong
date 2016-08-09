@@ -49,7 +49,7 @@ public class TextureHelper
                 background.draw(canvas); // draw the background to our bitmap
             }
 			else if (shape == shape.puck) {
-				background = context.getResources().getDrawable(R.drawable.puck);
+				background = context.getResources().getDrawable(R.drawable.mars);
                 background.setBounds(0, 0, mutableBitmap.getWidth(), mutableBitmap.getHeight());
                 background.draw(canvas); // draw the background to our bitmap
 			}

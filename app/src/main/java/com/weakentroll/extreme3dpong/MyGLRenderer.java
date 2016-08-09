@@ -8,6 +8,7 @@
  */
 
 package com.weakentroll.extreme3dpong;
+
 import android.content.Context;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
@@ -39,6 +40,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 	public enum ShapeTypes { puck, opponent, player, crosshair }
 	ShapeTypes shapeTypes; // TODO: not needed yet
 
+    ByteBuffer type;
+
     private final int frontFaceCoordsSize = 18; /*front face coords */
 
     // First we need to create the state machine.
@@ -48,7 +51,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     // TODO: Add Splash Screen!
 
 	Puck thePuck;
-    Puck crosshair;
+    Crosshair crosshair;
 	FPSCounter fpsCounter = new FPSCounter();
     private GLText glText;                             // A GLText Instance
 
@@ -216,7 +219,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		touchedZ = 0.0f;
 
 		thePuck = new Puck();
-        crosshair = new Puck();
+        crosshair = new Crosshair();
 		
 		// X, Y, Z
 		/*final float[] cubePositionData = {
@@ -489,8 +492,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		// of a model and
 		// view matrix. In OpenGL 2, we can keep track of these matrices
 		// separately if we choose.
-		Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
-				lookZ, upX, upY, upZ);
+		///Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
+		///		lookZ, upX, upY, upZ);
+
+        //Setting the view matrix
+        Matrix.setLookAtM(mViewMatrix, 0, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f);
 
 		final String vertexShader = getVertexShader();
 		final String fragmentShader = getFragmentShader();
@@ -526,13 +532,13 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Load the Puck texture
         mTextureDataHandle[1] = TextureHelper.loadTexture(mActivityContext,
-                R.drawable.text_bubble_bg, ShapeTypes.puck, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
+                R.drawable.mars, ShapeTypes.puck, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
 
         // Load the Opponent texture
         mTextureDataHandle[2] = TextureHelper.loadTexture(mActivityContext,
                 R.drawable.text_bubble_bg, ShapeTypes.opponent, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
 
-        // Load the Opponent texture
+        // Load the Crosshair texture
         mTextureDataHandle[3] = TextureHelper.loadTexture(mActivityContext,
                 R.drawable.text_bubble_bg, ShapeTypes.crosshair, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
     }
@@ -573,7 +579,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		// Create a new perspective projection matrix. The height will stay the
 		// same
 		// while the width will vary as per aspect ratio.
-		final float ratio = (float) width / height;
+		/*final float ratio = (float) width / height;
 		final float left = -ratio;
 		final float right = ratio;
 		final float bottom = -1.0f;
@@ -581,7 +587,19 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		final float near = 0.1f;
 		final float far = 100.0f;
 
-		Matrix.frustumM(mProjectionMatrix, 0, left, right, bottom, top, near, far);
+		Matrix.frustumM(mProjectionMatrix, 0, left, right, bottom, top, near, far);*/
+
+
+        float ratio = (float) width / height;
+        float near = 1.0f;
+        float far = 1000.0f;
+        float fov = 60; // degrees, try also 45, or different number if you like
+        float top = (float) (Math.tan(fov * Math.PI / 360.0f) * near);
+        float bottom = -top;
+        float left = ratio * bottom;
+        float right = ratio * top;
+        Matrix.perspectiveM(mProjectionMatrix, 0, 45.0f, ratio, near, far);
+        //Matrix.perpectiveM(mProjectionMatrix, 0, 45.0f, ratio, near, far)
 	}
 
 	@Override
@@ -599,10 +617,6 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
 
         fpsCounter.logFrame();
-
-		// Do a complete rotation every 10 seconds.
-		///long time = SystemClock.uptimeMillis() % 10000L;
-		///float angleInDegrees = (360.0f / 10000.0f) * ((int) time);
 
 		// Set our per-vertex lighting program.
 		GLES20.glUseProgram(mProgramHandle);
@@ -649,7 +663,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Draw the player cube.
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, outputCoordObj[0], -10.0f, -2.0f);
+        Matrix.translateM(mModelMatrix, 0, outputCoordObj[0], -5.0f, -20.0f);
 
         float[] newCubePos = new float[4];
         float[] newWorldCubePos = new float[4];
@@ -706,7 +720,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Draw the puck
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, thePuck.posX, 0.0f+thePuck.posY, -2.0f);
+        Matrix.translateM(mModelMatrix, 0, thePuck.posX, 0.0f+thePuck.posY, -20.0f);
 
         // Need to verify the texture gen array stays at 1 length?
         //final int[] textureHandle = new int[1];
@@ -777,7 +791,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Draw the opponent cube.
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, 0.0f, 10.0f, -2.0f);
+        Matrix.translateM(mModelMatrix, 0, 0.0f, 5.0f, -20.0f);
 
         // Set the active texture unit to texture unit 0.
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -838,7 +852,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Add crosshair to where the use has touched onto the screen
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, outputCoordObj[0], outputCoordObj[1], -2.0f/*touchedZ???*/);
+        Matrix.translateM(mModelMatrix, 0, outputCoordObj[0], outputCoordObj[1], -20.0f/*touchedZ???*/);
 
         // Set the active texture unit to texture unit 0.
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -959,17 +973,17 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         //glText.drawC( "Test String :)", 0, 0, 0 );          // Draw Test String
         //glText.draw( "Diagonal 1", 0.0f, 0.0f, -9.0f);                // Draw Test String
         //glText.draw( "Column 1", 100, 100, 90);              // Draw Test String
-        glText.draw( "FPS: " + fpsCounter.fps, -120.0f, 180.0f, -20.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Touched X:" + form.format(touchedX) + ", Y: " + form.format(touchedY) + ", Z: " + form.format(touchedZ), -120.0f, 170.0f, -20.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Player TL: " + form.format(worldPlayerMinX) + ", " + form.format(worldPlayerMaxY) + ", BR: " + form.format(worldPlayerMaxX) + ", " + form.format(worldPlayerMinY), -120.0f, 160.0f, -20.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Opponent TL: " + form.format(worldOpponentMinX) + ", " + form.format(worldOpponentMaxY) + ", BR: " + form.format(worldOpponentMaxX) + ", " + form.format(worldOpponentMinY), -120.0f, 150.0f, -20.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Puck TopLeft: " + form.format(worldPuckMinX) + ", " + form.format(worldPuckMinY) + ", BottomR: " + form.format(worldPuckMaxX) + ", " + form.format(worldPuckMaxY), -120.0f, 140.0f, -20.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "SCORE", -120.0f, 130.0f, -20.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Player: " + playerScore , -120.0f, 120.0f, -20.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Opponent: " + opponentScore , -120.0f, 110.0f, -20.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "FPS: " + fpsCounter.fps, -120.0f, 150.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Touched X:" + form.format(touchedX) + ", Y: " + form.format(touchedY) + ", Z: " + form.format(touchedZ), -120.0f, 140.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Player TL: " + form.format(worldPlayerMinX) + ", " + form.format(worldPlayerMaxY) + ", BR: " + form.format(worldPlayerMaxX) + ", " + form.format(worldPlayerMinY), -120.0f, 130.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Opponent TL: " + form.format(worldOpponentMinX) + ", " + form.format(worldOpponentMaxY) + ", BR: " + form.format(worldOpponentMaxX) + ", " + form.format(worldOpponentMinY), -120.0f, 120.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Puck TopLeft: " + form.format(worldPuckMinX) + ", " + form.format(worldPuckMinY) + ", BottomR: " + form.format(worldPuckMaxX) + ", " + form.format(worldPuckMaxY), -120.0f, 110.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "SCORE", -120.0f, 100.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Player: " + playerScore , -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Opponent: " + opponentScore , -120.0f, 80.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "XOffset[0]: " + XOffset[0] , -120.0f, 100.0f, -20.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "YOffset[0]: " + YOffset[0] , -120.0f, 90.0f, -20.0f, 0.0f, 0.0f, 0.0f);
-        //glText.draw( "XOffsetIncr[0]: " + XOffsetIncr[0] , -120.0f, 80.0f, -20.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "XOffsetIncr[0]: " + XOffsetIncr[0] , -120.0f, 80.0f, -20.0ff, 0, 0.0.0f, 0.0f);
         //glText.draw( "YOffsetIncr[0]: " + YOffsetIncr[0] , -120.0f, 70.0f, -20.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "CPU Temp: " + fpsCounter.fps, -120.0f, 180.0f, -20.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "Mem Usage: " + fpsCounter.fps, -120.0f, 180.0f, -20.0f, 0.0f, 0.0f, 0.0f);//glText.draw("Puck -,+Y: " + form.format(boxMinZ) + ", " + form.format(boxMaxZ), 20, 205, textPaint);*/
@@ -1112,17 +1126,13 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             GLES20.glUniform3f(mLightPosHandle, mLightPosInEyeSpace[0],
                     mLightPosInEyeSpace[1], mLightPosInEyeSpace[2]);
 
+            getOpenGLActiveAttribs();
+
             GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 36);
         }
 	}
 
 	public void drawPuck() {
-        /* TODO: test this code that disables previous opengl state variables (vertex arrays)
-        GLES20.glDisableVertexAttribArray(mPositionHandle);
-        GLES20.glDisableVertexAttribArray(mColorHandle);
-        GLES20.glDisableVertexAttribArray(mNormalHandle);
-        GLES20.glDisableVertexAttribArray(mTextureCoordinateHandle); */
-
 		// Pass in the position information
 		thePuck.mCubePositions.position(0);
 		GLES20.glVertexAttribPointer(mPositionHandle, thePuck.mPositionDataSize,
@@ -1144,14 +1154,13 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
 		GLES20.glEnableVertexAttribArray(mNormalHandle);
 
-        // TODO: the puck texture is currently not rendering properly
 		// Pass in the texture coordinate information
-		/*thePuck.mCubeTextureCoordinates.position(0);
+		thePuck.mCubeTextureCoordinates.position(0);
 		GLES20.glVertexAttribPointer(mTextureCoordinateHandle,
-				mTextureCoordinateDataSize, GLES20.GL_FLOAT, false, 0,
+				thePuck.mTextureCoordinateDataSize, GLES20.GL_FLOAT, false, 0,
 				thePuck.mCubeTextureCoordinates);
 
-		GLES20.glEnableVertexAttribArray(mTextureCoordinateHandle);*/
+		GLES20.glEnableVertexAttribArray(mTextureCoordinateHandle);
 
 		// This multiplies the view matrix by the model matrix, and stores the
 		// result in the MVP matrix
@@ -1173,14 +1182,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		GLES20.glUniform3f(mLightPosHandle, mLightPosInEyeSpace[0],
 				mLightPosInEyeSpace[1], mLightPosInEyeSpace[2]);
 
-		int capacitytest = thePuck.mCubePositions.capacity();
 		// Draw the puck using a triangle strip as per the puck sphere vertex setup arrangement.
-        // TODO: check the number of vertices to render when using a triangle strip vs. triangles
-		GLES20.glDrawArrays(/*GLES20.GL_TRIANGLES*/GLES20.GL_TRIANGLE_STRIP, 0, thePuck.mCubePositions.capacity()/3); // Careful with last argument for vertex array points!!
+		GLES20.glDrawArrays(/*GLES20.GL_TRIANGLES*/GLES20.GL_TRIANGLE_STRIP, 0, thePuck.mCubePositions.capacity()/3); // Careful with last argument for triangle_strip points!!
 	}
 
     public void drawCrosshair() {
-        // TODO: Caution - needs major work.
         // Pass in the position information
         crosshair.mCubePositions.position(0);
         GLES20.glVertexAttribPointer(mPositionHandle, crosshair.mPositionDataSize,
@@ -1242,33 +1248,6 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 				mPointProgramHandle, "u_MVPMatrix");
 		final int pointPositionHandle = GLES20.glGetAttribLocation(
 				mPointProgramHandle, "a_Position");
-
-		// Pass in the position.
-		GLES20.glVertexAttrib3f(pointPositionHandle, mLightPosInModelSpace[0],
-				mLightPosInModelSpace[1], mLightPosInModelSpace[2]);
-
-		// Since we are not using a buffer object, disable vertex arrays for
-		// this attribute.
-		GLES20.glDisableVertexAttribArray(pointPositionHandle);
-
-		// Pass in the transformation matrix.
-		Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mLightModelMatrix, 0);
-		Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
-		GLES20.glUniformMatrix4fv(pointMVPMatrixHandle, 1, false, mMVPMatrix, 0);
-
-		// Draw the point.
-		GLES20.glDrawArrays(GLES20.GL_POINTS, 0, 1);
-	}
-	
-	/**
-	 * Draws a point representing the position of the light.
-	 */
-    // TODO: Deprecated function - can be removed eventually
-	private void drawPuckLight() {
-		final int pointMVPMatrixHandle = GLES20.glGetUniformLocation(
-				thePuck.getmPointProgramHandle(), "u_MVPMatrix");
-		final int pointPositionHandle = GLES20.glGetAttribLocation(
-				thePuck.getmPointProgramHandle(), "a_Position");
 
 		// Pass in the position.
 		GLES20.glVertexAttrib3f(pointPositionHandle, mLightPosInModelSpace[0],
@@ -1395,5 +1374,29 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         else if (thePuck.puckXDirection == -1) {
             thePuck.posX -= thePuck.puckSpeed/10.0f;
         }
+    }
+
+    void getOpenGLActiveAttribs() {
+
+        /*int i;
+        java.nio.IntBuffer count = new IntBuffer();
+        java.nio.IntBuffer size; // size of the variable
+
+        final int bufSize = 16; // maximum name length
+        String name;//[bufSize]; // variable name in GLSL
+        java.nio.IntBuffer length; // name length
+
+
+        GLES20.glGetProgramiv(mProgramHandle, GLES20.GL_ACTIVE_ATTRIBUTES, count);
+        //printf("Active Attributes: %d\n", count);
+
+        for (i = 0; i < count.capacity(); i++)
+        {
+            GLES20.glGetActiveAttrib(mProgramHandle, (int)i, bufSize, length, size, type, name);
+
+            printf("Attribute #%d Type: %u Name: %s\n", i, type, name);
+        }
+*/
+
     }
 }
