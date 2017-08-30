@@ -46,7 +46,7 @@ class GameMachine extends IStateMachine
         mStates.add(mExit);
 
         // Finally set my starting point
-        mCurrent = pong;
+        mCurrent = entry;
     }
 
     ///#region IStateMachine Overrides

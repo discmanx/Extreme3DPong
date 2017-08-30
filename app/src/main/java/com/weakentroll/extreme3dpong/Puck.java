@@ -10,6 +10,7 @@ package com.weakentroll.extreme3dpong;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.Random;
 
 public class Puck {
 
@@ -22,9 +23,11 @@ public class Puck {
     }
     Vertex g_pSphereVertices[];
 
+    Random randomGenerator;
+
     /* This is the direction: positive Y = up, positive X = right */
-    int puckYDirection = 1;
-    int puckXDirection = 1;
+    int puckYDirection;
+    int puckXDirection;
 
     /* Speed of puck horizontally - 0.5 - 1.0 depending on if its center hits center of paddle in range 0.25 to 0.75 width */
     float puckSpeed = 0.0f;
@@ -107,6 +110,20 @@ public class Puck {
         posX = 0.0f;
         posY = 0.0f;
         posZ = 0.0f;
+
+        int max = 1;
+        int min = 0;
+        randomGenerator = new Random();
+        int randomNum = randomGenerator.nextInt((max - min) + 1) + min;
+        if (randomNum > 0)
+            puckYDirection = 1;
+        else
+            puckYDirection = -1;
+        randomNum = randomGenerator.nextInt((max - min) + 1) + min;
+        if (randomNum > 0)
+            puckXDirection = 1;
+        else
+            puckXDirection = -1;
 
         createSphereGeometry(0.0f, 0.0f, 0.0f, 1.5f, 12);
 

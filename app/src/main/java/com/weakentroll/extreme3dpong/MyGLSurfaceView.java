@@ -61,7 +61,7 @@ public class MyGLSurfaceView extends GLSurfaceView {
         // MotionEvent reports input details from the touch screen
         // and other input controls. In this case, you are only
         // interested in events where the touch position changed.
-    	
+
     	float[] newCubePos = new float[4];
     	float[] newWorldCubePos = new float[4];
         float[] outputCoordObj = new float[4];
@@ -72,7 +72,7 @@ public class MyGLSurfaceView extends GLSurfaceView {
 		float[] mModelMatrix = new float[16];
 		
 		// Position the eye in front of the origin.
-		final float eyeX = 0.0f;
+		/*final float eyeX = 0.0f;
 		final float eyeY = 0.0f;
 		final float eyeZ = 0.0f;
 
@@ -85,7 +85,7 @@ public class MyGLSurfaceView extends GLSurfaceView {
 		// holding the camera.
 		final float upX = 0.0f;
 		final float upY = 1.0f;
-		final float upZ = 0.0f;
+		final float upZ = 0.0f; */
 
 		// Set the view matrix. This matrix can be said to represent the camera
 		// position.
@@ -97,31 +97,39 @@ public class MyGLSurfaceView extends GLSurfaceView {
 
         //Setting the view matrix
         Matrix.setLookAtM(mTempViewMatrix, 0, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f);
-		
+
+
+        float testWidth = mRenderer.getmWidth();
+        float testHeight = getHeight();
 		// Create a new perspective projection matrix. The height will stay the
 		// same
 		// while the width will vary as per aspect ratio.
-		/*final float ratio = (float) mRenderer.getmWidth() / mRenderer.getmHeight();
+		final float ratio = (float) mRenderer.getmWidth() / mRenderer.getmHeight();
 		final float left = -ratio;
 		final float right = ratio;
 		final float bottom = -1.0f;
 		final float top = 1.0f;
 		final float near = 0.1f;
 		final float far = 100.0f;
+		float fovY = 60;
+		float zNear = 20.0f;
+		float zFar = 1000.0f;
+		float aspect = (float) mRenderer.getmWidth() / mRenderer.getmHeight();
 
-		Matrix.frustumM(mTempProjectionMatrix, 0, left, right, bottom, top, near,
-				far);*/
 
-        float ratio = (float) mRenderer.getmWidth() / mRenderer.getmHeight();
-        float near = 1.0f;
-        float far = 1000.0f;
-        float fov = 60; // degrees, try also 45, or different number if you like
-        float top = (float) (Math.tan(fov * Math.PI / 360.0f) * near);
-        float bottom = -top;
-        float left = ratio * bottom;
-        float right = ratio * top;
-        Matrix.perspectiveM(mTempProjectionMatrix, 0, 45.0f, ratio, near, far);
-		
+		//double pi = 3.1415926535897932384626433832795;
+		float fW, fH;
+
+		//fH = tan( (fovY / 2) / 180 * pi ) * zNear;
+		fH = (float)Math.tan( fovY / 360 * Math.PI ) * zNear;
+		fW = fH * aspect;
+
+		//glFrustum( -fW, fW, -fH, fH, zNear, zFar );
+
+		//Matrix.frustumM(mProjectionMatrix, 0, left, right, bottom, top, near, far);
+		Matrix.frustumM(mTempProjectionMatrix, 0, -fW, fW, -fH, fH, zNear, zFar);
+
+
 		newWorldCubePos[3] = 1.0f;
 		
 		Matrix.setIdentityM(mModelMatrix, 0);
@@ -130,9 +138,13 @@ public class MyGLSurfaceView extends GLSurfaceView {
 		Matrix.multiplyMM(mTempMVPMatrix, 0, mTempViewMatrix, 0, mModelMatrix, 0);
 		//Matrix.multiplyMM(mTempMVPMatrix, 0, mTempProjectionMatrix, 0, mTempMVPMatrix, 0);
 
-        float x = e.getX();
+
+
+        float x = e.getX();//0.0f; //e.getX();
+        // TODO: subtract the height of the action toolbar and quit button layout from the total screen size to get .5 y touch screen value
         float y = (mRenderer.getmHeight() - e.getY()); //float y = e.getY();
-        
+
+
         newCubePos[0] = x;
         newCubePos[1] = y;
         newCubePos[2] = 0.0f;
@@ -153,103 +165,42 @@ public class MyGLSurfaceView extends GLSurfaceView {
 		newWorldCubePos[1] = newWorldCubePos[1] / newWorldCubePos[3];
 		newWorldCubePos[2] = newWorldCubePos[2] / newWorldCubePos[3];
 
-        int status = GLU.gluUnProject(x, y, 0.0f, mTempMVPMatrix, 0, mRenderer.getmProjectionMatrix(), 
-        			  0, convertedViewMatrix, 0, outputCoordObj, 0);
+        int status = GLU.gluUnProject(x, y, 0.0f, mTempMVPMatrix, 0, mTempProjectionMatrix /* change back!!!@ mRenderer.getmProjectionMatrix() */,
+         			  0, convertedViewMatrix, 0, outputCoordObj, 0);
 
         //outputCoordObj[0] /= ((float)mRenderer.getmWidth() / (float)mRenderer.getmHeight());
-        float touchedX = (outputCoordObj[0] / outputCoordObj[3])/((float)mRenderer.getmWidth()/(float)mRenderer.getmHeight());//newWorldCubePos[0]; //
+        float touchedX = (outputCoordObj[0] / outputCoordObj[3]);///((float)mRenderer.getmWidth()/(float)mRenderer.getmHeight());//newWorldCubePos[0]; //
         //touchedX /= ((float)mRenderer.getmWidth() / (float)mRenderer.getmHeight());
         float touchedY = outputCoordObj[1] / outputCoordObj[3];//newWorldCubePos[1]; //
         float touchedZ = outputCoordObj[2] / outputCoordObj[3];//newWorldCubePos[2]; //
 
-        mRenderer.setTouchedPoint(touchedX, touchedY, touchedZ, outputCoordObj);
+
 
         System.out.printf("Touched screen coords->world coords are: %f, %f, %f", touchedX, touchedY, touchedZ);
 
         mPreviousX = x;
         mPreviousY = y;
+    /* not needed anymore to get the far clip plane
+        status = GLU.gluUnProject(x, y, 0.020f, mTempMVPMatrix, 0, mRenderer.getmProjectionMatrix(),
+                0, convertedViewMatrix, 0, outputCoordObj, 0);
+
+        float touchedX2 = (outputCoordObj[0] / outputCoordObj[3]);///((float)mRenderer.getmWidth()/(float)mRenderer.getmHeight());//newWorldCubePos[0]; //
+        //touchedX /= ((float)mRenderer.getmWidth() / (float)mRenderer.getmHeight());
+        float touchedY2 = outputCoordObj[1] / outputCoordObj[3];//newWorldCubePos[1]; //
+        float touchedZ2 = outputCoordObj[2] / outputCoordObj[3];//newWorldCubePos[2]; //
+    */
+        //mRenderer.setTouchedPoint(touchedX, touchedY, touchedZ, outputCoordObj, fW, fH /*,  fW, fH */);
+
+        float[] touchedCoords = new float[2];
+        touchedCoords[0] = e.getX();
+        touchedCoords[1] = e.getY();
+
+        mRenderer.SetWorldTouchCoords(touchedCoords);
         return true;
     }
     
-    /**
-     * Calculates the transform from screen coordinate
-     * system to world coordinate system coordinates
-     * for a specific point, given a camera position.
-     *
-     * @param touch Vec2 point of screen touch, the
-       actual position on physical screen (ej: 160, 240)
-     * @param cam camera object with x,y,z of the
-       camera and screenWidth and screenHeight of
-       the device.
-     * @return position in WCS.
-     */
-    /*public Vec2 GetWorldCoords( Vec2 touch, Camera cam)
-    {  
-        // Initialize auxiliary variables.
-        Vec2 worldPos = new Vec2();
 
-        // SCREEN height & width (ej: 320 x 480)
-        float screenW = cam.GetScreenWidth();
-        float screenH = cam.GetScreenHeight();
 
-        // Auxiliary matrix and vectors
-        // to deal with ogl.
-        float[] invertedMatrix, transformMatrix,
-            normalizedInPoint, outPoint;
-        invertedMatrix = new float[16];
-        transformMatrix = new float[16];
-        normalizedInPoint = new float[4];
-        outPoint = new float[4];
-
-        // Invert y coordinate, as android uses
-        // top-left, and ogl bottom-left.
-        int oglTouchY = (int) (screenH - touch.Y());
-
-        /* Transform the screen point to clip
-        space in ogl (-1,1) */       
-        /*normalizedInPoint[0] =
-         (float) ((touch.X()) * 2.0f / screenW - 1.0);
-        normalizedInPoint[1] =
-         (float) ((oglTouchY) * 2.0f / screenH - 1.0);
-        normalizedInPoint[2] = - 1.0f;
-        normalizedInPoint[3] = 1.0f;
-
-        /* Obtain the transform matrix and
-        then the inverse. */
-        
-        
-        
-        /*Print("Proj", getCurrentProjection(gl));
-        Print("Model", getCurrentModelView(gl));
-        Matrix.multiplyMM(
-            transformMatrix, 0,
-            getCurrentProjection(mRenderer.unused), 0,
-            getCurrentModelView(gl), 0);
-        Matrix.invertM(invertedMatrix, 0,
-            transformMatrix, 0);       
-
-        /* Apply the inverse to the point
-        in clip space */
-        /*Matrix.multiplyMV(
-            outPoint, 0,
-            invertedMatrix, 0,
-            normalizedInPoint, 0);
-
-        if (outPoint[3] == 0.0)
-        {
-            // Avoid /0 error.
-            //Log.e("World coords", "ERROR!");
-            return worldPos;
-        }
-
-        // Divide by the 3rd component to find
-        // out the real position.
-        worldPos.Set(
-            outPoint[0] / outPoint[3],
-            outPoint[1] / outPoint[3]);
-
-        return worldPos;       
-    }*/
     
 
     /** Called when the user clicks the Send button
@@ -289,5 +240,7 @@ public class MyGLSurfaceView extends GLSurfaceView {
 	
 	}*/
 
-    
+    public MyGLRenderer getmRenderer() {
+        return mRenderer;
+    }
 }

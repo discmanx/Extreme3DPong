@@ -60,7 +60,7 @@ public class TextureHelper
             }
 
             else if (shape == shape.crosshair) {
-                background = context.getResources().getDrawable(R.drawable.green_bullseye);
+                background = context.getResources().getDrawable(R.drawable.square_crosshair);
                 background.setBounds(0, 0, mutableBitmap.getWidth(), mutableBitmap.getHeight());
                 background.draw(canvas); // draw the background to our bitmap
             }

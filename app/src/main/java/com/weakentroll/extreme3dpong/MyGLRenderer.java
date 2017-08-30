@@ -37,7 +37,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 	/** Used for debug logs. */
 	private static final String TAG = "ExtremePongRenderer";
 	
-	public enum ShapeTypes { puck, opponent, player, crosshair }
+	public enum ShapeTypes { puck, opponent, player, crosshair, skullnbones }
 	ShapeTypes shapeTypes; // TODO: not needed yet
 
     ByteBuffer type;
@@ -46,25 +46,32 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     // First we need to create the state machine.
     // Note that I'm using the abstract IStateMachine instead of a concrete class.
-    IStateMachine gameMachine = new GameMachine();
+    public IStateMachine gameMachine = new GameMachine();
 
     // TODO: Add Splash Screen!
 
 	Puck thePuck;
     Crosshair crosshair;
+    BottomScrollBar bottomScrollBar;
 	FPSCounter fpsCounter = new FPSCounter();
     private GLText glText;                             // A GLText Instance
 
     int negativezcount = 0;
     int positivezcount = 0;
+
     private int opponentScore = 0;
     private int playerScore = 0;
+
+    private float fieldWidth, fieldHeight, fW, fH, fWidthFar, fHeightFar;
 
     private float[] XOffset = new float[12];
     private float[] YOffset = new float[12];
 
     private float[] XOffsetIncr = new float[12];
     private float[] YOffsetIncr = new float[12];
+
+    private double phi = 0.0f;//-(2*Math.PI);
+    private double theta = 0.0f;//-(Math.PI);
 
     // Position the eye in front of the origin.
     private float eyeX = 0.0f;
@@ -85,10 +92,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     SkeletalShapeBuilder skeletalShapeBuilder = new SkeletalShapeBuilder();;
 
     // Formatting the string representation value, not the actual numerical precision
-    DecimalFormat form = new DecimalFormat("0.00");
+    DecimalFormat form = new DecimalFormat("0.0000000");
 
 	private int mWidth;
     private int mHeight;
+    private float rawTouchY;
     private float touchedX, touchedY, touchedZ;
     float[] outputCoordObj = new float[4];
     
@@ -96,7 +104,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     private float worldPuckMinX = 0.0f, worldPuckMaxX = 0.0f, worldPuckMinY = 1.0f, worldPuckMaxY = -1.0f, worldPuckMinZ = 0.0f , worldPuckMaxZ = 0.0f;
     private float worldPuckBottomMinX = 0.0f, worldPuckBottomMaxX = 0.0f, worldPuckBottomMinY = 0.0f, worldPuckBottomMaxY = 0.0f, worldPuckBottomMinZ = 0.0f , worldPuckBottomMaxZ = 0.0f;
     private float worldOpponentMinX = 0.0f, worldOpponentMaxX = 0.0f, worldOpponentMinY = 1.0f, worldOpponentMaxY = 0.0f, worldOpponentMinZ = 0.0f , worldOpponentMaxZ = 0.0f;
-
+    private float worldBottomScrollBarMinX = 0.0f, worldBottomScrollBarMaxX = 0.0f, worldBottomScrollBarMinY = 1.0f, worldBottomScrollBarMaxY = -10.0f, worldBottomScrollBarMinZ = 0.0f , worldBottomScrollBarMaxZ = 0.0f;
+    private float worldBottomScrollGreenHeight;
     private Context mActivityContext;
 
 	/**
@@ -220,6 +229,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
 		thePuck = new Puck();
         crosshair = new Crosshair();
+        bottomScrollBar = new BottomScrollBar();
 		
 		// X, Y, Z
 		/*final float[] cubePositionData = {
@@ -528,7 +538,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
 		// Load the Player texture
 	    mTextureDataHandle[0] = TextureHelper.loadTexture(mActivityContext,
-				R.drawable.text_bubble_bg, ShapeTypes.player, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
+				R.drawable.skullnbones, ShapeTypes.player, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
 
         // Load the Puck texture
         mTextureDataHandle[1] = TextureHelper.loadTexture(mActivityContext,
@@ -536,11 +546,12 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Load the Opponent texture
         mTextureDataHandle[2] = TextureHelper.loadTexture(mActivityContext,
-                R.drawable.text_bubble_bg, ShapeTypes.opponent, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
+                R.drawable.skullnbones, ShapeTypes.opponent, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
 
         // Load the Crosshair texture
         mTextureDataHandle[3] = TextureHelper.loadTexture(mActivityContext,
-                R.drawable.text_bubble_bg, ShapeTypes.crosshair, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
+                R.drawable.square_crosshair, ShapeTypes.crosshair, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
+
     }
 
 	@Override
@@ -571,7 +582,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     } */
 
 		// Set the OpenGL viewport to the same size as the surface.
-		GLES20.glViewport(0, 0, width, height);
+		//GLES20.glViewport(0, 0, width, height);
 		
 		mWidth = width;
         mHeight = height;
@@ -579,17 +590,32 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		// Create a new perspective projection matrix. The height will stay the
 		// same
 		// while the width will vary as per aspect ratio.
-		/*final float ratio = (float) width / height;
+		final float ratio = (float) width / height;
 		final float left = -ratio;
 		final float right = ratio;
 		final float bottom = -1.0f;
 		final float top = 1.0f;
 		final float near = 0.1f;
 		final float far = 100.0f;
+        float fovY = 60;
+        float zNear = 1.0f;
+        float zFar = 1000.0f;
+        float aspect = (float) width / height;
 
-		Matrix.frustumM(mProjectionMatrix, 0, left, right, bottom, top, near, far);*/
+
+        //double pi = 3.1415926535897932384626433832795;
 
 
+        //fH = tan( (fovY / 2) / 180 * pi ) * zNear;
+        fieldHeight = (float)Math.tan( fovY / 360 * Math.PI ) * zNear;
+        fieldWidth = fieldHeight * aspect;
+
+        //glFrustum( -fW, fW, -fH, fH, zNear, zFar );
+
+		//Matrix.frustumM(mProjectionMatrix, 0, left, right, bottom, top, near, far);
+        Matrix.frustumM(mProjectionMatrix, 0, -fieldWidth, fieldWidth, -fieldHeight, fieldHeight, zNear, zFar);
+
+/*
         float ratio = (float) width / height;
         float near = 1.0f;
         float far = 1000.0f;
@@ -598,7 +624,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         float bottom = -top;
         float left = ratio * bottom;
         float right = ratio * top;
-        Matrix.perspectiveM(mProjectionMatrix, 0, 45.0f, ratio, near, far);
+        Matrix.perspectiveM(mProjectionMatrix, 0, 45.0f, ratio, near, far); */
         //Matrix.perpectiveM(mProjectionMatrix, 0, 45.0f, ratio, near, far)
 	}
 
@@ -614,11 +640,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         //GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         GLES20.glClear(clearMask);
 
-        Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
+        //Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
 
         fpsCounter.logFrame();
 
-		// Set our per-vertex lighting program.
+        // Set our per-vertex lighting program.
 		GLES20.glUseProgram(mProgramHandle);
 
 		// Set program handles for cube drawing.
@@ -659,11 +685,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		Matrix.multiplyMV(mLightPosInEyeSpace, 0, mViewMatrix, 0,
 				mLightPosInWorldSpace, 0);
 
-        Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
+        //Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
 
         // Draw the player cube.
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, outputCoordObj[0], -5.0f, -20.0f);
+        Matrix.translateM(mModelMatrix, 0, /*outputCoordObj[0]*/ touchedX /* (fWProjected/ (fW / touchedX) ) */, -5.0f, -20.0f);
 
         float[] newCubePos = new float[4];
         float[] newWorldCubePos = new float[4];
@@ -720,7 +746,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Draw the puck
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, thePuck.posX, 0.0f+thePuck.posY, -20.0f);
+        Matrix.translateM(mModelMatrix, 0, thePuck.posX, thePuck.posY, -20.0f);
 
         // Need to verify the texture gen array stays at 1 length?
         //final int[] textureHandle = new int[1];
@@ -791,7 +817,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Draw the opponent cube.
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, 0.0f, 5.0f, -20.0f);
+        Matrix.translateM(mModelMatrix, 0, -5.0f, 5.0f, -20.0f);
 
         // Set the active texture unit to texture unit 0.
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -815,7 +841,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
             if ( (i % 3) == 0) {
                 newOpponentCubePos[3] = 1.0f;
-                //newOpponentWorldCubePos[3] = 1.0f;
+                //newOpponentWorldCubePos[3] = 1.0f;+++++++++++++++++
 
                 Matrix.multiplyMM(mOpponentTempMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
                 Matrix.multiplyMM(mOpponentTempMVPMatrix, 0, mProjectionMatrix, 0, mOpponentTempMVPMatrix, 0);
@@ -850,9 +876,117 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         drawCube();
 
+
+        Matrix.setLookAtM(mViewMatrix, 0, 0.0f, 0.0f, 0.0f, lookX, lookY,
+                -5.0f, upX, upY, upZ);
+        // Draw bottom scrollbar
+        Matrix.setIdentityM(mModelMatrix, 0);
+        Matrix.translateM(mModelMatrix, 0, 0.55f, -8.0f, -20.0f);
+
+        drawBottomScrollBar();
+
+        float[] mTempProjectionMatrix;
+        mTempProjectionMatrix = new float[16];
+
+        final float ratio = (float) getmWidth() / getmHeight();
+        final float left = -ratio;
+        final float right = ratio;
+        final float bottom = -1.0f;
+        final float top = 1.0f;
+        final float near = 0.1f;
+        final float far = 100.0f;
+        float fovY = 60;
+        float zNear = 15.0f;
+        float zFar = 1000.0f;
+        float aspect = (float) getmWidth() / getmHeight();
+
+        float fW, fH;
+        fH = (float)Math.tan( fovY / 360 * Math.PI ) * zNear;
+        fW = fH * aspect;
+
+        Matrix.frustumM(mTempProjectionMatrix, 0, -fW, fW, -fH, fH, zNear, zFar);
+
+        float[] newbottomScrollBarCubePos = new float[4];
+        float[] newbottomScrollBarWorldCubePos = new float[4];
+        float[] mbottomScrollBarTempMVPMatrix = new float[16];
+
+        for (int i = 0; i < bottomScrollBar.mCubePositions.capacity(); i++) {
+            if (i == 0)
+                continue;
+
+            newbottomScrollBarCubePos[i%3] = bottomScrollBar.mCubePositions.get(i);
+
+            if ( (i % 3) == 0) {
+                newbottomScrollBarCubePos[3] = 1.0f;
+                //newOpponentWorldCubePos[3] = 1.0f;+++++++++++++++++
+
+                //Matrix.multiplyMM(newbottomScrollBarWorldCubePos, 0, mModelMatrix, 0, newbottomScrollBarCubePos , 0);
+                // instead of multuiplying th object vertex by only the model...
+                //Matrix.multiplyMM(mbottomScrollBarTempMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+                //Matrix.multiplyMM(mbottomScrollBarTempMVPMatrix, 0, /*mProjectionMatrix*/mTempProjectionMatrix, 0, mbottomScrollBarTempMVPMatrix, 0);
+                //Matrix.multiplyMV(newbottomScrollBarWorldCubePos, 0, mbottomScrollBarTempMVPMatrix, 0, newbottomScrollBarCubePos, 0);
+
+                newbottomScrollBarWorldCubePos[0] = newbottomScrollBarCubePos[0] + 0.55f;
+                newbottomScrollBarWorldCubePos[1] = newbottomScrollBarCubePos[1] - 8.0f;
+                newbottomScrollBarWorldCubePos[2] = newbottomScrollBarCubePos[2] - 20.0f;
+
+                //newbottomScrollBarWorldCubePos[0] = newbottomScrollBarWorldCubePos[0] / newbottomScrollBarWorldCubePos[3];
+                //newbottomScrollBarWorldCubePos[1] = newbottomScrollBarWorldCubePos[1] / newbottomScrollBarWorldCubePos[3];
+                //newbottomScrollBarWorldCubePos[2] = newbottomScrollBarWorldCubePos[2] / newbottomScrollBarWorldCubePos[3];
+
+                if (newbottomScrollBarWorldCubePos[0] < worldBottomScrollBarMinX) {
+                    worldBottomScrollBarMinX = newbottomScrollBarWorldCubePos[0];//posX *fNearHieght//;
+                }
+                if (newbottomScrollBarWorldCubePos[0] > worldBottomScrollBarMaxX) {
+                    worldBottomScrollBarMaxX = newbottomScrollBarWorldCubePos[0];
+                }
+                if (newbottomScrollBarWorldCubePos[1] < worldBottomScrollBarMinY) {
+                    worldBottomScrollBarMinY = newbottomScrollBarWorldCubePos[1];
+                }
+                if (newbottomScrollBarWorldCubePos[1] > worldBottomScrollBarMaxY) {
+                    worldBottomScrollBarMaxY = newbottomScrollBarWorldCubePos[1];
+                }
+                if (newbottomScrollBarWorldCubePos[2] < worldBottomScrollBarMinZ) {
+                    worldBottomScrollBarMinZ = newbottomScrollBarWorldCubePos[2];
+                }
+                if (newbottomScrollBarWorldCubePos[2] > worldBottomScrollBarMaxZ) {
+                    worldBottomScrollBarMaxZ = newbottomScrollBarWorldCubePos[2];
+                }
+            }
+            //mModelMatrix * originalCubeVertices = newCubeVertices;
+        }
+
+        Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
+                -20.0f, upX, upY, upZ);
+
+    /*
+        for (int i = 0; i < bottomScrollBar.mCubePositions.capacity(); i++) {
+            if (i == 0)
+                continue;
+
+            newPuckCubePos[i % 3] = bottomScrollBar.mCubePositions.get(i);
+
+            if ((i % 3) == 0) {
+                newPuckCubePos[3] = 1.0f;
+                newPuckWorldCubePos[3] = 1.0f;
+
+                Matrix.multiplyMM(mPuckTempMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+                Matrix.multiplyMM(mPuckTempMVPMatrix, 0, mProjectionMatrix, 0, mPuckTempMVPMatrix, 0);
+
+                Matrix.multiplyMV(newPuckWorldCubePos, 0, mPuckTempMVPMatrix, 0, newPuckCubePos, 0);
+
+                newPuckWorldCubePos[0] = newPuckWorldCubePos[0] / newPuckWorldCubePos[3];
+                newPuckWorldCubePos[1] = newPuckWorldCubePos[1] / newPuckWorldCubePos[3];
+                newPuckWorldCubePos[2] = newPuckWorldCubePos[2] / newPuckWorldCubePos[3];
+
+                
+            }
+        } */
+
+
         // Add crosshair to where the use has touched onto the screen
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, outputCoordObj[0], outputCoordObj[1], -20.0f/*touchedZ???*/);
+        Matrix.translateM(mModelMatrix, 0, touchedX,/*outputCoordObj[0], outputCoordObj[1]*/touchedY, -20.0f/*touchedZ???*/);
 
         // Set the active texture unit to texture unit 0.
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -964,9 +1098,13 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         }
 
+        Matrix.setIdentityM(mModelMatrix, 0);
+        Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+        GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
+        Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+
         // TEST: render the entire font texture
         //glText.drawTexture( mWidth/2, mHeight/2, mMVPMatrix);            // Draw the Entire Texture
-
         // TEST: render some strings with the font
         glText.begin( 0.0f, 0.0f, 1.0f, 1.0f, mMVPMatrix );         // Begin Text Rendering
         //glText.drawC("Test String 3D!", 0f, 0f, 0f, 0, -30, 0);
@@ -977,10 +1115,22 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         glText.draw( "Touched X:" + form.format(touchedX) + ", Y: " + form.format(touchedY) + ", Z: " + form.format(touchedZ), -120.0f, 140.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         glText.draw( "Player TL: " + form.format(worldPlayerMinX) + ", " + form.format(worldPlayerMaxY) + ", BR: " + form.format(worldPlayerMaxX) + ", " + form.format(worldPlayerMinY), -120.0f, 130.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         glText.draw( "Opponent TL: " + form.format(worldOpponentMinX) + ", " + form.format(worldOpponentMaxY) + ", BR: " + form.format(worldOpponentMaxX) + ", " + form.format(worldOpponentMinY), -120.0f, 120.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Puck TopLeft: " + form.format(worldPuckMinX) + ", " + form.format(worldPuckMinY) + ", BottomR: " + form.format(worldPuckMaxX) + ", " + form.format(worldPuckMaxY), -120.0f, 110.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "SCORE", -120.0f, 100.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Player: " + playerScore , -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Opponent: " + opponentScore , -120.0f, 80.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Puck TopLeft: " + form.format(worldPuckMinX) + ", " + form.format(worldPuckMaxY), -120.0f, 110.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( ", BottomR: " + form.format(worldPuckMaxX) + ", " + form.format(worldPuckMinY), -120.0f, 100.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "SCORE", -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Player: " + playerScore , -120.0f, 80.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Opponent: " + opponentScore , -120.0f, 70.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "fW: " + form.format(this.fW)  + ", fH: " + form.format(this.fH),  -120.0f, 180.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "BottomScrollBar TL: " + form.format(worldBottomScrollBarMinX) + ", " + form.format(worldBottomScrollBarMaxY), -120.0f, 210.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "BottomScrollBar BR: " + form.format(worldBottomScrollBarMaxX) + ", " + form.format(worldBottomScrollBarMinY), -120.0f, 200.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "BottomScrollBar Selected Pct: " + form.format(bottomScrollBar.getSelectedPct()), -120.0f, 190.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+
+        glText.draw( "BottomScrollBarHeightGreenCalc: " + form.format(worldBottomScrollGreenHeight) , -120.0f, 60.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "BottomScrollBarHeightActual: " + form.format(worldBottomScrollBarMaxY - worldBottomScrollBarMinY) , -120.0f, 50.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "World TouchX: " + form.format(touchedX) + ", TouchY: " + form.format(touchedY) , -120.0f, 160.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Raw Touch Y: " + form.format(rawTouchY)  , -120.0f, 170.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Server Ping: "   , -120.0f, 40.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+
         //glText.draw( "XOffset[0]: " + XOffset[0] , -120.0f, 100.0f, -20.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "YOffset[0]: " + YOffset[0] , -120.0f, 90.0f, -20.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "XOffsetIncr[0]: " + XOffsetIncr[0] , -120.0f, 80.0f, -20.0ff, 0, 0.0.0f, 0.0f);
@@ -1032,6 +1182,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             // This multiplies the view matrix by the model matrix, and stores the
             // result in the MVP matrix
             // (which currently contains model * view).
+
+            // testpoint1
             Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
 
             // Pass in the modelview matrix.
@@ -1043,7 +1195,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
 
             for (int i = 0; i < 36; i++) {
-                if ( (i > 0) && ((i % 3) == 0) ) {
+                if ( (i > 0) && ((i % 3) == 0) ) { // Algorithm to explode the paddles vertices
                     //TRANSLATION
                     float[] transMatrix = new float[16];
                     float[] scratch = new float[16];
@@ -1279,6 +1431,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		return mProjectionMatrix;
 	}
 
+    public float[] getmModelMatrix() {
+        return mModelMatrix;
+    }
+
 	public float[] getmViewMatrix() {
 		return mViewMatrix;
 	}
@@ -1290,15 +1446,316 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 	public int getmHeight() {
 		return mHeight;
 	}
-	
-	public void setTouchedPoint(float newX, float newY, float newZ, float[] outputCoordObj) {
-		touchedX = newX;
-		touchedY = newY;
-		touchedZ = newZ;
-		this.outputCoordObj[0] = outputCoordObj[0];
+
+    public void setTouchedPoint(float newX, float newY, float newZ, float[] outputCoordObj, float fWNear, float fHNear/*, float fWFar, float fHFar*/) {
+        touchedX = newX;
+        touchedY = newY;
+        touchedZ = newZ;
+        this.outputCoordObj[0] = outputCoordObj[0];
         this.outputCoordObj[1] = outputCoordObj[1];
         this.outputCoordObj[2] = outputCoordObj[2];
-	}
+        this.fieldWidth = fWNear;
+        this.fieldHeight = fHNear;
+        //this.fWidthFar = fWFar;
+        //this.fHeightFar = fHFar;
+
+        float minY = -10.0f, maxY = -10.0f;
+        //touchedY
+
+        while ( (maxY/fieldHeight) < worldBottomScrollBarMaxY)
+        {
+            maxY = maxY + 0.000001f;
+        }
+        while ( (minY/fieldHeight) < worldBottomScrollBarMinY)
+        {
+            minY += 0.000001f;
+        }
+
+        worldBottomScrollGreenHeight = (minY/fieldHeight) - (maxY/fieldHeight);
+
+        if ( (touchedX/fieldWidth > worldBottomScrollBarMinX) && (touchedX/fieldWidth < worldBottomScrollBarMaxX) ) {
+           // if ((touchedY / fHeightNear > worldBottomScrollBarMinY) && (touchedY / fHeightNear < worldBottomScrollBarMaxY)) {
+                //if ( (touchedY/fHeightNear > worldOpponentMinY) && (touchedY/fHeightNear < worldOpponentMaxY) ) {
+
+
+                // R, G, B, A
+                final float[] cubeColorData = {
+                        // Front face (green)
+                        0.0f, 1.0f, 0.0f, 1.0f,
+                        0.0f, 1.0f, 0.0f, 1.0f,
+                        0.0f, 1.0f, 0.0f, 1.0f,
+                        0.0f, 1.0f, 0.0f, 1.0f,
+                        0.0f, 1.0f, 0.0f, 1.0f,
+                        0.0f, 1.0f, 0.0f, 1.0f,};
+
+                bottomScrollBar.mCubeColors.clear();
+                bottomScrollBar.mCubeColors.put(cubeColorData).position(0);
+            }
+            //}
+            else {
+                // R, G, B, A
+                final float[] cubeColorData = {
+                        // Front face (red)
+                        1.0f, 0.0f, 0.0f, 1.0f,
+                        1.0f, 0.0f, 0.0f, 1.0f,
+                        1.0f, 0.0f, 0.0f, 1.0f,
+                        1.0f, 0.0f, 0.0f, 1.0f,
+                        1.0f, 0.0f, 0.0f, 1.0f,
+                        1.0f, 0.0f, 0.0f, 1.0f,};
+
+                bottomScrollBar.mCubeColors.clear();
+                bottomScrollBar.mCubeColors.put(cubeColorData).position(0);
+
+            }
+        //}
+    }
+
+
+    /**
+     * Calculates the transform from screen coordinate
+     * system to world coordinate system coordinates
+     * for a specific point, given a camera position.
+     *
+     * @param touch Vec2 point of screen touch, the
+    actual position on physical screen (ej: 160, 240)
+
+     * @return position in WCS.
+     */
+    public void SetWorldTouchCoords( float[] touch)
+    {
+        // Initialize auxiliary variables.
+        float[] worldPos = new float[3];
+
+        // SCREEN height & width (ej: 320 x 480)
+        float screenW = getmWidth();
+        float screenH = getmHeight();
+
+        // Auxiliary matrix and vectors
+        // to deal with ogl.
+        float[] invertedMatrix, mTempMVPMatrix,mTempViewMatrix,  mTempModelMatrix, transformMatrix,
+                mTempProjectionMatrix, normalizedInPoint, outPoint;
+        invertedMatrix = new float[16];
+        mTempMVPMatrix = new float[16];
+        mTempModelMatrix = new float[16];
+        mTempProjectionMatrix = new float[16];
+        mTempViewMatrix = new float[16];
+        transformMatrix = new float[16];
+        normalizedInPoint = new float[4];
+        outPoint = new float[4];
+
+        ///Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
+        ///		lookZ, upX, upY, upZ);
+
+        //Setting the view matrix
+        Matrix.setLookAtM(mTempViewMatrix, 0, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f);
+
+
+        final float ratio = (float) getmWidth() / getmHeight();
+        final float left = -ratio;
+        final float right = ratio;
+        final float bottom = -1.0f;
+        final float top = 1.0f;
+        final float near = 0.1f;
+        final float far = 100.0f;
+        float fovY = 60;
+        float zNear = 19.0f;
+        float zFar = 1000.0f;
+        float aspect = (float) getmWidth() / getmHeight();
+
+        float fW, fH;
+        fH = (float)Math.tan( fovY / 360 * Math.PI ) * zNear;
+        fW = fH * aspect;
+        this.fW = fW;
+        this.fH = fH;
+
+        Matrix.frustumM(mTempProjectionMatrix, 0, -fW, fW, -fH, fH, zNear, zFar);
+
+        // Invert y coordinate, as android uses
+        // top-left, and ogl bottom-left.
+        int oglTouchY = (int) (screenH - touch[1]);
+        rawTouchY = touch[1];
+
+        /* Transform the screen point to clip
+        space in ogl (-1,1) */
+        normalizedInPoint[0] =
+         (float) ((touch[0]) * 2.0f / screenW - 1.0);
+        normalizedInPoint[1] =
+         (float) ((oglTouchY) * 2.0f / screenH - 1.0);
+        normalizedInPoint[2] = - 1.0f;
+        normalizedInPoint[3] = 1.0f;
+
+        /* Obtain the transform matrix and
+        then the inverse. */
+        //Print("Proj", getCurrentProjection(gl));
+        //Print("Model", getCurrentModelView(gl));
+        Matrix.setIdentityM(mTempModelMatrix, 0);
+        //Matrix.translateM(mTempModelMatrix, 0, 0.0f, 0.0f, -20.0f);
+
+        Matrix.multiplyMM(mTempMVPMatrix, 0, mTempViewMatrix/*mViewMatrix*/, 0, mTempModelMatrix, 0);
+        //Matrix.multiplyMM(mTempMVPMatrix, 0, mTempProjectionMatrix, 0, mTempMVPMatrix, 0);
+
+        Matrix.multiplyMM(
+            transformMatrix, 0,
+                mTempProjectionMatrix/*getCurrentProjection(mRenderer.unused)*/, 0,
+                mTempMVPMatrix/*getCurrentModelView(gl)*/, 0);
+        Matrix.invertM(invertedMatrix, 0,
+            transformMatrix, 0);
+
+        /* Apply the inverse to the point
+        in clip space */
+        Matrix.multiplyMV(
+            outPoint, 0,
+            invertedMatrix, 0,
+            normalizedInPoint, 0);
+
+        /*if (outPoint[3] == 0.0)
+        {
+            // Avoid /0 error.
+            //Log.e("World coords", "ERROR!");
+            return worldPos;
+        }*/
+
+        // Divide by the 3rd component to find
+        // out the real position.
+        worldPos[0] = outPoint[0] / outPoint[3];
+        worldPos[1] = outPoint[1] / outPoint[3];
+        worldPos[2] = outPoint[2] / outPoint[3];
+
+        touchedX = worldPos[0];//*fieldWidth;
+        touchedY = worldPos[1];//*fieldHeight;
+        touchedZ = worldPos[2];
+
+        float minY = -10.0f, maxY = -10.0f;
+        //touchedY
+
+        while ( (maxY/fH) < worldBottomScrollBarMaxY)
+        {
+            maxY = maxY + 0.000001f;
+        }
+        while ( (minY/fH) < worldBottomScrollBarMinY)
+        {
+            minY += 0.000001f;
+        }
+
+        worldBottomScrollGreenHeight = (minY/fH) - (maxY/fH);
+
+
+        if ( (touchedX > worldBottomScrollBarMinX) && (touchedX < worldBottomScrollBarMaxX)
+                && ( touchedY > worldBottomScrollBarMinY) && ( touchedY < worldBottomScrollBarMaxY)) {
+
+            float lengthScrollbar = worldBottomScrollBarMaxX -  worldBottomScrollBarMinX;// Math.abs(worldBottomScrollBarMinX) + Math.abs(worldBottomScrollBarMaxX);
+            float leftOffset = touchedX - worldBottomScrollBarMinX;
+            float pct = (leftOffset / lengthScrollbar) * 100.0f;
+            bottomScrollBar.setSelectedPct( pct );
+
+            //long time = SystemClock.uptimeMillis() % 4000L;
+            // float angle = 0.010f * ((int) time);
+            if (phi < (2*Math.PI) ) {
+                phi += 0.01d;
+            }
+            else if (phi > (2*Math.PI ))
+                phi = 0.0d;
+
+            /*if (theta < Math.PI) {
+                theta += 0.01d;
+            }
+            else if (theta > Math.PI)
+                theta = -Math.PI;*/
+            theta = (Math.PI) * (pct/100.0f);
+
+            eyeX = (float) (0.0f +20.0f*Math.cos(theta));//*Math.sin(theta) );
+            //eyeY = (float) (1.0f + 100.0f*Math.sin(phi)*Math.sin(theta) );
+            eyeZ = (float) (-20.0f +20.0f*Math.sin(theta) ); ////
+
+            //lookY = 1.0f;
+            //lookZ = -20.0f;
+
+            /////eyeX = (float) (pickObjX + /*1.0f* */ // Math.cos( i*2 )*Math.sin( i ));
+            //eyeY = (float) (pickObjY + /*1.0f */ Math.sin( i )*Math.sin( i ));
+            //eyeZ = (float) (pickObjZ + /*1.0f*/  Math.cos( i * 2 ) );
+            //eyeY = (float) (lookY + 1.0f*Math.sin(pct)*Math.sin(pct));
+            //eyeZ = (float) (lookZ + 20.0f* Math.cos(Math.PI*(100.0f/pct)));
+
+            Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
+                    -20.0f, upX, upY, upZ);
+
+            // Update the view
+            //if (eyeZ >= -1.5)
+            //    eyeZ -= 0.01;
+
+            // We are looking toward the distance
+            //final float lookX = 0.0f;
+            //if (eyeZ <= -1.5)
+            //    lookY += 0.001f;
+            //final float lookZ = -5.0f;
+
+            //eyeX = (float) (0.0f*Math.cos( 0.4f *  pct ) );
+            //eyeY = (float) (1.0f*Math.sin( 0.4f * pct ) );
+
+            float phi = (float) Math.PI*2;
+            float theta = (float) Math.PI;
+            float pickObjX = 0.0f;
+            float pickObjY = 0.0f;
+            float pickObjZ = 20.0f;
+
+            /* for (float i = 0.0000001f; i < Math.PI; i += 0.0000001f)
+            {
+
+                //// eyeX = pickObjX + radius*cos(phi)*sin(theta);
+                eyeY = pickObjY + radius*sin(phi)*sin(theta);
+                eyeZ = pickObjZ + radius*cos(theta); ////
+
+                /////eyeX = (float) (pickObjX + /*1.0f* */ // Math.cos( i*2 )*Math.sin( i ));
+                //eyeY = (float) (pickObjY + /*1.0f */ Math.sin( i )*Math.sin( i ));
+                //eyeZ = (float) (pickObjZ + /*1.0f*/  Math.cos( i * 2 ) );
+                //eyeY = (float) (lookY + 1.0f*Math.sin(pct)*Math.sin(pct));
+                //eyeZ = (float) (lookZ + 20.0f* Math.cos(Math.PI*(100.0f/pct)));
+
+                //Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
+                //        lookZ, upX, upY, upZ);
+            //} */
+            //eyeX = (float) (lookX + /*1.0f* */ Math.cos( Math.PI*(100.0f/pct) )*Math.sin( Math.PI*(100.0f/pct) ));
+            //eyeY = (float) (lookY + 1.0f*Math.sin(pct)*Math.sin(pct));
+            //eyeZ = (float) (lookZ + 20.0f* Math.cos(Math.PI*(100.0f/pct)));
+
+            //Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
+            //        lookZ, upX, upY, upZ);
+
+
+             //if (( touchedY/fH < worldBottomScrollBarMaxY)  && (touchedY/fH > worldBottomScrollBarMinY)) {
+            //if ( (touchedY/fHeightNear > worldOpponentMinY) && (touchedY/fHeightNear < worldOpponentMaxY) ) {
+
+
+            // R, G, B, A
+            final float[] cubeColorData = {
+                    // Front face (green)
+                    0.0f, 1.0f, 0.0f, 1.0f,
+                    0.0f, 1.0f, 0.0f, 1.0f,
+                    0.0f, 1.0f, 0.0f, 1.0f,
+                    0.0f, 1.0f, 0.0f, 1.0f,
+                    0.0f, 1.0f, 0.0f, 1.0f,
+                    0.0f, 1.0f, 0.0f, 1.0f,};
+
+            bottomScrollBar.mCubeColors.clear();
+            bottomScrollBar.mCubeColors.put(cubeColorData).position(0);
+        //}
+        }
+        else {
+            // R, G, B, A
+            final float[] cubeColorData = {
+                    // Front face (red)
+                    1.0f, 0.0f, 0.0f, 1.0f,
+                    1.0f, 0.0f, 0.0f, 1.0f,
+                    1.0f, 0.0f, 0.0f, 1.0f,
+                    1.0f, 0.0f, 0.0f, 1.0f,
+                    1.0f, 0.0f, 0.0f, 1.0f,
+                    1.0f, 0.0f, 0.0f, 1.0f,};
+
+            bottomScrollBar.mCubeColors.clear();
+            bottomScrollBar.mCubeColors.put(cubeColorData).position(0);
+
+        }
+    }
 
     /*
      * The collision detection is calculated by the objects screen position
@@ -1340,7 +1797,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                 if ( (worldPuckMaxX >= worldPlayerMinX) && (worldPuckMinX <= worldPlayerMaxX) ) { //(   <= max) ) {
                     thePuck.puckYDirection = 1;
                     //if (deltaPuckX > deltaBoxX)
-                    thePuck.puckSpeed = 0.20f+((deltaBoxX - deltaPuckX  )/3.0f);//worldPlayerMaxX - worldPuckMaxX);
+                    thePuck.puckSpeed = 0.1f+((deltaBoxX - deltaPuckX  )/3.0f);//worldPlayerMaxX - worldPuckMaxX);
                     //thePuck.posY += 0.05f;
                     //worldPuckMinX = 1.0f; worldPuckMaxX = -1.0f; worldPuckMinY = 1.0f; worldPuckMaxY = -1.0f; worldPuckMinZ = 0.0f ; worldPuckMaxZ = 0.0f;
                 }
@@ -1399,4 +1856,78 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 */
 
     }
+
+    private void drawBottomScrollBar() {
+        // Pass in the position information
+        bottomScrollBar.mCubePositions.position(0);
+        GLES20.glVertexAttribPointer(mPositionHandle, bottomScrollBar.mPositionDataSize,
+                GLES20.GL_FLOAT, false, 0, bottomScrollBar.mCubePositions);
+
+        GLES20.glEnableVertexAttribArray(mPositionHandle/*bottomScrollBar.getmPositionHandle()*/);
+
+        // Pass in the color information
+        bottomScrollBar.mCubeColors.position(0);
+        GLES20.glVertexAttribPointer(mColorHandle, bottomScrollBar.mColorDataSize,
+               GLES20.GL_FLOAT, false, 0, bottomScrollBar.mCubeColors);
+
+        GLES20.glEnableVertexAttribArray(mColorHandle/*bottomScrollBar.getmColorHandle()*/);
+
+        // Pass in the normal information
+        bottomScrollBar.mCubeNormals.position(0);
+        GLES20.glVertexAttribPointer(mNormalHandle, bottomScrollBar.mNormalDataSize,
+                GLES20.GL_FLOAT, false, 0, bottomScrollBar.mCubeNormals);
+
+        GLES20.glEnableVertexAttribArray(mNormalHandle/*bottomScrollBar.getmNormalHandle()*/);
+
+        // Pass in the texture coordinate information
+        bottomScrollBar.mCubeTextureCoordinates.position(0);
+        GLES20.glVertexAttribPointer(mTextureCoordinateHandle,
+                mTextureCoordinateDataSize, GLES20.GL_FLOAT, false, 0,
+                bottomScrollBar.mCubeTextureCoordinates);
+
+        GLES20.glEnableVertexAttribArray(mTextureCoordinateHandle);
+
+        // This multiplies the view matrix by the model matrix, and stores the
+        // result in the MVP matrix
+        // (which currently contains model * view).
+        Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+
+        // Pass in the modelview matrix.
+        GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
+
+        // This multiplies the modelview matrix by the projection matrix, and
+        // stores the result in the MVP matrix
+        // (which now contains model * view * projection).
+        Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+
+        // Pass in the combined matrix.
+        GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, mMVPMatrix, 0);
+
+        // Pass in the light position in eye space.
+        GLES20.glUniform3f(mLightPosHandle, mLightPosInEyeSpace[0],
+                mLightPosInEyeSpace[1], mLightPosInEyeSpace[2]);
+
+        // Draw the crosshair.
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6);
+
+
+    }
+
+    public int getOpponentScore() {
+        return opponentScore;
+    }
+
+    public int getPlayerScore() {
+        return playerScore;
+    }
+
+    public void setOpponentScore(int opponentScore) {
+        this.opponentScore = opponentScore;
+    }
+
+    public void setPlayerScore(int playerScore) {
+        this.playerScore = playerScore;
+    }
+
+
 }

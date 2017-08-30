@@ -1,10 +1,114 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/my_linear_layout"
     android:orientation="vertical"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
+    <com.weakentroll.extreme3dpong.MyGLSurfaceView
+    android:id="@+id/glSurfaceViewID"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" />
+
+
+    <LinearLayout
+        android:id="@+id/dyn_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_vertical|center_horizontal" > <!-- android:layout_centerInParent="true"> -->
+        <Button
+            android:id="@+id/saveGame"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="saveGame"
+            android:text="Save Game"
+            android:visibility="gone"/>
+        <Button
+            android:id="@+id/newGame"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="newGame"
+            android:text="New Game"
+            android:visibility="gone"/>
+        <Button
+            android:id="@+id/loadGame"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="loadGame"
+            android:text="Load Game"
+            android:visibility="gone"/>
+        <Button
+            android:id="@+id/singlePlayer"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="singlePlayer"
+            android:text="Single Player" />
+        <Button
+            android:id="@+id/multiPlayer"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="multiPlayer"
+            android:text="Multi Player"/>
+        <Button
+            android:id="@+id/highScores"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="highScores"
+            android:text="High Scores"/>
+        <Button
+            android:id="@+id/exitGame"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="exitGame"
+            android:text="Exit Extreme 3D Pong" />
+
+        <Button
+            android:id="@+id/openMenu"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="openMenu"
+            android:text="Menu"
+            android:visibility="gone"/>
+
+        <Button
+            android:id="@+id/backMenu"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="backMenu"
+            android:text="Back"
+            android:visibility="gone"/>
+            <!--<LinearLayout
+                android:id="@+id/bottomscrollbarlayout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:visibility="gone"> -->
+                <!-- <HorizontalScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+                    android:id="@+id/ScrollView01"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"
+                    android:visibility="gone">
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"/>
+                </HorizontalScrollView> -->
+
+           <!-- </LinearLayout> -->
+    </LinearLayout>*
+
+
+<!--
     <android.support.v7.widget.Toolbar
         android:id="@+id/my_toolbar"
         android:layout_width="match_parent"
@@ -14,13 +118,13 @@
         android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
         app:popupTheme="@style/ThemeOverlay.AppCompat.Light"/>
 
-    <!-- <Button
+    <!- <Button
         android:id="@+id/SendPacket"
         style="?android:attr/buttonStyleSmall"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:onClick="sendPacket"
-        android:text="Send to Server" /> -->
+        android:text="Send to Server" />
 
     <Button
         android:id="@+id/CloseProgram"
@@ -29,7 +133,7 @@
         android:layout_height="wrap_content"
         android:onClick="quit"
         android:text="Quit" />
-
+-->
     <!-- <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:tools="http://schemas.android.com/tools"
         xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -45,4 +149,4 @@
             android:id="@+id/GLSurfaceView1" /> -->
    <!-- </FrameLayout> -->
 
-</LinearLayout>
+</RelativeLayout>
