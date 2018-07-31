@@ -58,6 +58,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     int negativezcount = 0;
     int positivezcount = 0;
+    long startTime, endTime, onDrawFrametime;
 
     private int opponentScore = 0;
     private int playerScore = 0;
@@ -628,8 +629,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         //Matrix.perpectiveM(mProjectionMatrix, 0, 45.0f, ratio, near, far)
 	}
 
-	@Override
-	public void onDrawFrame(GL10 glUnused) {
+    @Override
+    public void onDrawFrame(GL10 glUnused) {
+
+        startTime = System.nanoTime();
 
         worldPlayerMinX = 1.0f; worldPlayerMaxX = -1.0f; worldPlayerMinY = 1.0f; worldPlayerMaxY = -1.0f; worldPlayerMinZ = 0.0f ; worldPlayerMaxZ = 0.0f;
         worldOpponentMinX = 1.0f; worldOpponentMaxX = -1.0f; worldOpponentMinY = 1.0f; worldOpponentMaxY = -1.0f; worldOpponentMinZ = 0.0f ; worldOpponentMaxZ = 0.0f;
@@ -645,45 +648,45 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         fpsCounter.logFrame();
 
         // Set our per-vertex lighting program.
-		GLES20.glUseProgram(mProgramHandle);
+        GLES20.glUseProgram(mProgramHandle);
 
-		// Set program handles for cube drawing.
-		mMVPMatrixHandle = GLES20.glGetUniformLocation(mProgramHandle,
-				"u_MVPMatrix");
-		mMVMatrixHandle = GLES20.glGetUniformLocation(mProgramHandle,
-				"u_MVMatrix");
-		mLightPosHandle = GLES20.glGetUniformLocation(mProgramHandle,
-				"u_LightPos");
-		mTextureUniformHandle = GLES20.glGetUniformLocation(mProgramHandle,
-				"u_Texture");
-		mPositionHandle = GLES20.glGetAttribLocation(mProgramHandle,
-				"a_Position");
-		mColorHandle = GLES20.glGetAttribLocation(mProgramHandle, "a_Color");
-		mNormalHandle = GLES20.glGetAttribLocation(mProgramHandle, "a_Normal");
-		mTextureCoordinateHandle = GLES20.glGetAttribLocation(mProgramHandle,
-				"a_TexCoordinate");
+        // Set program handles for cube drawing.
+        mMVPMatrixHandle = GLES20.glGetUniformLocation(mProgramHandle,
+                "u_MVPMatrix");
+        mMVMatrixHandle = GLES20.glGetUniformLocation(mProgramHandle,
+                "u_MVMatrix");
+        mLightPosHandle = GLES20.glGetUniformLocation(mProgramHandle,
+                "u_LightPos");
+        mTextureUniformHandle = GLES20.glGetUniformLocation(mProgramHandle,
+                "u_Texture");
+        mPositionHandle = GLES20.glGetAttribLocation(mProgramHandle,
+                "a_Position");
+        mColorHandle = GLES20.glGetAttribLocation(mProgramHandle, "a_Color");
+        mNormalHandle = GLES20.glGetAttribLocation(mProgramHandle, "a_Normal");
+        mTextureCoordinateHandle = GLES20.glGetAttribLocation(mProgramHandle,
+                "a_TexCoordinate");
 
-		// Set the active texture unit to texture unit 0.
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        // Set the active texture unit to texture unit 0.
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 
-		// Bind the texture to this unit.
-		GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextureDataHandle[0]);
+        // Bind the texture to this unit.
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextureDataHandle[0]);
 
-		// Tell the texture uniform sampler to use this texture in the shader by
-		// binding to texture unit 0.
-		GLES20.glUniform1i(mTextureUniformHandle, 0);
+        // Tell the texture uniform sampler to use this texture in the shader by
+        // binding to texture unit 0.
+        GLES20.glUniform1i(mTextureUniformHandle, 0);
 
-		// Calculate position of the light. Rotate and then push into the
-		// distance.
-		Matrix.setIdentityM(mLightModelMatrix, 0);
-		//Matrix.translateM(mLightModelMatrix, 0, 0.0f, 0.0f, -5.0f);
-		//Matrix.rotateM(mLightModelMatrix, 0, angleInDegrees, 0.0f, 1.0f, 0.0f);
-		//Matrix.translateM(mLightModelMatrix, 0, 0.0f, 0.0f, 2.0f);
+        // Calculate position of the light. Rotate and then push into the
+        // distance.
+        Matrix.setIdentityM(mLightModelMatrix, 0);
+        //Matrix.translateM(mLightModelMatrix, 0, 0.0f, 0.0f, -5.0f);
+        //Matrix.rotateM(mLightModelMatrix, 0, angleInDegrees, 0.0f, 1.0f, 0.0f);
+        //Matrix.translateM(mLightModelMatrix, 0, 0.0f, 0.0f, 2.0f);
 
-		Matrix.multiplyMV(mLightPosInWorldSpace, 0, mLightModelMatrix, 0,
-				mLightPosInModelSpace, 0);
-		Matrix.multiplyMV(mLightPosInEyeSpace, 0, mViewMatrix, 0,
-				mLightPosInWorldSpace, 0);
+        Matrix.multiplyMV(mLightPosInWorldSpace, 0, mLightModelMatrix, 0,
+                mLightPosInModelSpace, 0);
+        Matrix.multiplyMV(mLightPosInEyeSpace, 0, mViewMatrix, 0,
+                mLightPosInWorldSpace, 0);
 
         //Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
 
@@ -757,7 +760,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         //mTextureDataHandle = TextureHelper.loadTexture(mActivityContext,
         //R.drawable.text_bubble_bg, shapeTypes.puck, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
 
-		// TODO: This textures is already active? change it to the puck texture
+        // TODO: This textures is already active? change it to the puck texture
         // Set the active texture unit to texture unit 0.
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 
@@ -979,7 +982,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                 newPuckWorldCubePos[1] = newPuckWorldCubePos[1] / newPuckWorldCubePos[3];
                 newPuckWorldCubePos[2] = newPuckWorldCubePos[2] / newPuckWorldCubePos[3];
 
-                
+
             }
         } */
 
@@ -1112,24 +1115,25 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         //glText.draw( "Diagonal 1", 0.0f, 0.0f, -9.0f);                // Draw Test String
         //glText.draw( "Column 1", 100, 100, 90);              // Draw Test String
         glText.draw( "FPS: " + fpsCounter.fps, -120.0f, 150.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Touched X:" + form.format(touchedX) + ", Y: " + form.format(touchedY) + ", Z: " + form.format(touchedZ), -120.0f, 140.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Player TL: " + form.format(worldPlayerMinX) + ", " + form.format(worldPlayerMaxY) + ", BR: " + form.format(worldPlayerMaxX) + ", " + form.format(worldPlayerMinY), -120.0f, 130.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Opponent TL: " + form.format(worldOpponentMinX) + ", " + form.format(worldOpponentMaxY) + ", BR: " + form.format(worldOpponentMaxX) + ", " + form.format(worldOpponentMinY), -120.0f, 120.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Puck TopLeft: " + form.format(worldPuckMinX) + ", " + form.format(worldPuckMaxY), -120.0f, 110.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( ", BottomR: " + form.format(worldPuckMaxX) + ", " + form.format(worldPuckMinY), -120.0f, 100.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "SCORE", -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Player: " + playerScore , -120.0f, 80.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Opponent: " + opponentScore , -120.0f, 70.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "fW: " + form.format(this.fW)  + ", fH: " + form.format(this.fH),  -120.0f, 180.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "BottomScrollBar TL: " + form.format(worldBottomScrollBarMinX) + ", " + form.format(worldBottomScrollBarMaxY), -120.0f, 210.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "BottomScrollBar BR: " + form.format(worldBottomScrollBarMaxX) + ", " + form.format(worldBottomScrollBarMinY), -120.0f, 200.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "BottomScrollBar Selected Pct: " + form.format(bottomScrollBar.getSelectedPct()), -120.0f, 190.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "Touched X:" + form.format(touchedX) + ", Y: " + form.format(touchedY) + ", Z: " + form.format(touchedZ), -120.0f, 140.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "OnDrawFrame Time: " + form.format(onDrawFrametime)  , -120.0f, 130.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Player TL: " + form.format(worldPlayerMinX) + ", " + form.format(worldPlayerMaxY) + ", BR: " + form.format(worldPlayerMaxX) + ", " + form.format(worldPlayerMinY), -120.0f, 120.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Opponent TL: " + form.format(worldOpponentMinX) + ", " + form.format(worldOpponentMaxY) + ", BR: " + form.format(worldOpponentMaxX) + ", " + form.format(worldOpponentMinY), -120.0f, 110.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "Puck TopLeft: " + form.format(worldPuckMinX) + ", " + form.format(worldPuckMaxY), -120.0f, 100.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( ", BottomR: " + form.format(worldPuckMaxX) + ", " + form.format(worldPuckMinY), -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "SCORE", -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "Player: " + playerScore , -120.0f, 80.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "Opponent: " + opponentScore , -120.0f, 70.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "fW: " + form.format(this.fW)  + ", fH: " + form.format(this.fH),  -120.0f, 180.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "BottomScrollBar TL: " + form.format(worldBottomScrollBarMinX) + ", " + form.format(worldBottomScrollBarMaxY), -120.0f, 210.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "BottomScrollBar BR: " + form.format(worldBottomScrollBarMaxX) + ", " + form.format(worldBottomScrollBarMinY), -120.0f, 200.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "BottomScrollBar Selected Pct: " + form.format(bottomScrollBar.getSelectedPct()), -120.0f, 190.0f, -400.0f, 0.0f, 0.0f, 0.0f);
 
-        glText.draw( "BottomScrollBarHeightGreenCalc: " + form.format(worldBottomScrollGreenHeight) , -120.0f, 60.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "BottomScrollBarHeightActual: " + form.format(worldBottomScrollBarMaxY - worldBottomScrollBarMinY) , -120.0f, 50.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "BottomScrollBarHeightGreenCalc: " + form.format(worldBottomScrollGreenHeight) , -120.0f, 60.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "BottomScrollBarHeightActual: " + form.format(worldBottomScrollBarMaxY - worldBottomScrollBarMinY) , -120.0f, 50.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         glText.draw( "World TouchX: " + form.format(touchedX) + ", TouchY: " + form.format(touchedY) , -120.0f, 160.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         glText.draw( "Raw Touch Y: " + form.format(rawTouchY)  , -120.0f, 170.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Server Ping: "   , -120.0f, 40.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "Server Ping: "   , -120.0f, 40.0f, -400.0f, 0.0f, 0.0f, 0.0f);
 
         //glText.draw( "XOffset[0]: " + XOffset[0] , -120.0f, 100.0f, -20.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "YOffset[0]: " + YOffset[0] , -120.0f, 90.0f, -20.0f, 0.0f, 0.0f, 0.0f);
@@ -1142,11 +1146,15 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         // Draw a point to indicate the light.
         GLES20.glUseProgram(mPointProgramHandle);
         drawLight();
-	}
 
-	/**
-	 * Draws a cube.
-	 */
+        endTime = System.nanoTime();
+        onDrawFrametime = (endTime - startTime)/1000000;
+    }
+
+
+        /**
+         * Draws a cube.
+         */
 	private void drawCube() {
 		// Pass in the position information
         if (gameMachine.CurrentState().GetName() == "PlayerWins") { // TODO: move player wins condition to the state switch statement in draw()
@@ -1929,5 +1937,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         this.playerScore = playerScore;
     }
 
+    public void youWin() {
+        // Scroll through a bunch of game stats with a compliment beside them at speed
+    }
 
+    public void youLose() {
+        // Everything on screen explodes, YOU LOSE! featured prominently
+    }
 }

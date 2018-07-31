@@ -9,8 +9,12 @@ package com.weakentroll.extreme3dpong;
  *
  **********************************************/
 
+import android.accounts.AccountManager;
+import android.accounts.AccountManagerCallback;
+import android.accounts.AccountManagerFuture;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,15 +23,22 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.inputmethod.EditorInfo;
+import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.Scroller;
+import android.widget.TextView;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -37,10 +48,14 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static com.weakentroll.extreme3dpong.R.id.dyn_layout;
 import static com.weakentroll.extreme3dpong.R.id.multiPlayer;
+import static com.weakentroll.extreme3dpong.R.id.multiPlayerListView;
+import static com.weakentroll.extreme3dpong.R.id.multiPlayer_layout;
 import static com.weakentroll.extreme3dpong.R.id.singlePlayer;
 
 
@@ -53,14 +68,50 @@ public class MainActivity extends AppCompatActivity
 
 	private Socket echoSocket;
 	private static final String hostName = "www.weakentroll.com";
-	private static final int portNumber = 9997;
+	private static final int portNumber = 60001;
 	private String serverMsg;
     private static NetClient nc;
 
+	private CustomListAdapter customListAdapter;
+	//static ListView multiPlayerListView = null;// = (ListView)findViewById(R.id.multiPlayerList);
+	static ArrayList<MultiPlayer> multiPlayerList = new ArrayList<MultiPlayer>();
+
+	// View variables
+	LinearLayout dyn_layout; //= (LinearLayout)findViewById(R.id.dyn_layout);
+	Button singlePlayerButton;// = (Button)findViewById(R.id.singlePlayer);
+	Button newGameButton;// = (Button)findViewById(R.id.newGame);
+	Button saveGameButton;// = (Button)findViewById(R.id.saveGame);
+	Button loadGameButton;// = (Button)findViewById(R.id.loadGame);
+	Button multiPlayerButton;// = (Button)findViewById(R.id.multiPlayer);
+	ListView multiPlayerListView;// = (ListView)findViewById(R.id.multiPlayerListView);
+	LinearLayout multiPlayer_layout;
+	EditText multiplayer_username_input;
+	EditText multiplayer_password_input;
+	Button multiplayer_login_button;
+	LinearLayout multiPlayerList_layout;// = (LinearLayout)findViewById(R.id.multiPlayer_layout);
+
+	LinearLayout createMultiPlayerAccount_layout;
+	EditText create_multiplayer_username_input;
+	EditText create_multiplayer_password_input;
+	EditText create_multiplayer_password_confirm_input;
+	Button register_multiplayer_account_button;
+
+	Button highScoresButton;// = (Button)findViewById(R.id.highScores);
+	Button exitGameButton;// = (Button)findViewById(R.id.exitGame);
+	Button backMenuButton;// = (Button)findViewById(R.id.backMenu);
+	LinearLayout display_msg_layout;// = (LinearLayout)findViewById(R.id.display_msg_layout);
+	TextView display_msg_textview;// = (TextView)findViewById(R.id.display_msg_textview);
+	Button msg_button;// = (Button)findViewById(R.id.msg_button);
+	TextView or_textview;
+	Button createaccount_button;
+
+	private Handler mHandler;
 
 	LooperThread mLooperThread;
 
-	private static class LooperThread extends Thread {
+
+
+	private class LooperThread extends Thread {
 
 		public Handler mHandler;
 
@@ -76,6 +127,9 @@ public class MainActivity extends AppCompatActivity
 					if(msg.what == 0) {
 						doLongRunningOperation(msg);
 					}
+					if (msg.what == 1) {
+						handleTouchPoints();
+					}
 				}
 			};
 			Looper.loop();
@@ -87,11 +141,52 @@ public class MainActivity extends AppCompatActivity
 	public void onCreate(Bundle savedInstanceState) 
 	{
 		super.onCreate(savedInstanceState);
-
         // hideSystemUI();
 
 		mLooperThread = new LooperThread();
 		mLooperThread.start();
+
+		mHandler = new Handler(Looper.getMainLooper()) {
+			/*
+             * handleMessage() defines the operations to perform when the
+             * Handler receives a new Message to process.
+             */
+			@Override
+			public void handleMessage(Message inputMessage) {
+
+				// Gets the image task from the incoming Message object.
+				//PhotoTask photoTask = (PhotoTask) inputMessage.obj;
+
+				switch (inputMessage.what) {
+					case 1: //ArrayAdapter<MultiPlayer> adapter = new ArrayAdapter<MultiPlayer>(MainActivity.this,
+							//android.R.layout.simple_list_item_1, multiPlayerList);
+						customListAdapter = new CustomListAdapter(getApplicationContext(), mLooperThread.mHandler, multiPlayerList);
+						multiPlayerListView.setAdapter(customListAdapter);
+
+						for (int i = 0; i < dyn_layout.getChildCount(); i++) {
+							View v = dyn_layout.getChildAt(i);
+							v.setVisibility(View.GONE);
+						}
+
+						multiPlayerList_layout.setVisibility(View.VISIBLE);
+						backMenuButton.setVisibility(View.VISIBLE);
+						multiPlayerListView.setVisibility(View.VISIBLE);
+						//mGLSurfaceView.getmRenderer().gameMachine.Advance("MultiPlayerMenu");
+						break;
+					case 2: displayMessage("Error connecting to server.", "Ok", "current");
+						break;
+					case 3: displayMessage("Invalid Password.", "Ok", "current");
+						break;
+					case 4: displayMessage("Username already created. Please choose another.", "Ok" , "current");
+						break;
+					case 5: displayMessage("Please confirm password.", "Ok", "current");
+						break;
+					default:
+						// Otherwise, calls the super method
+						super.handleMessage(inputMessage);
+				}
+			}
+		};
 
 		/* TODO: enable bluetooth
         ArrayAdapter mArrayAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, 0);
@@ -141,6 +236,44 @@ public class MainActivity extends AppCompatActivity
 		}*/
 
         setContentView(R.layout.activity_main);
+
+		dyn_layout = (LinearLayout)findViewById(R.id.dyn_layout);
+		singlePlayerButton = (Button)findViewById(R.id.singlePlayer);
+		newGameButton = (Button)findViewById(R.id.newGame);
+		saveGameButton = (Button)findViewById(R.id.saveGame);
+		loadGameButton = (Button)findViewById(R.id.loadGame);
+		multiPlayerButton = (Button)findViewById(R.id.multiPlayer);
+		multiPlayerListView = (ListView)findViewById(R.id.multiPlayerListView);
+		multiPlayer_layout = (LinearLayout)findViewById(R.id.multiPlayer_layout);
+		multiplayer_username_input = (EditText)findViewById(R.id.multiplayer_username_input);
+		multiplayer_login_button = (Button)findViewById(R.id.multiplayer_login_button);
+		multiplayer_password_input = (EditText)findViewById(R.id.multiplayer_password_input);
+		multiplayer_password_input.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+			@Override
+			public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+				boolean handled = false;
+				if (actionId == EditorInfo.IME_ACTION_SEND) {
+					multiplayer_login_button.performClick();
+					handled = true;
+				}
+				return handled;
+			}
+		});
+		multiPlayerList_layout = (LinearLayout)findViewById(R.id.multiPlayerList_layout);
+		highScoresButton = (Button)findViewById(R.id.highScores);
+		exitGameButton = (Button)findViewById(R.id.exitGame);
+		backMenuButton = (Button)findViewById(R.id.backMenu);
+		display_msg_layout = (LinearLayout)findViewById(R.id.display_msg_layout);
+		display_msg_textview = (TextView)findViewById(R.id.display_msg_textview);
+		msg_button = (Button)findViewById(R.id.msg_button);
+		or_textview = (TextView)findViewById(R.id.or__textview);
+		createaccount_button = (Button)findViewById(R.id.createaccount_button);
+
+		createMultiPlayerAccount_layout = (LinearLayout)findViewById(R.id.createMultiPlayerAccount_layout);
+		create_multiplayer_username_input = (EditText)findViewById(R.id.create_multiplayer_username_input);
+		create_multiplayer_password_input = (EditText)findViewById(R.id.create_multiplayer_password_input);
+		create_multiplayer_password_confirm_input = (EditText)findViewById(R.id.create_multiplayer_password_confirm_input);
+		register_multiplayer_account_button = (Button)findViewById(R.id.register_multiplayer_account_button);
         ////final LinearLayout linearView = (LinearLayout) findViewById(R.id.my_linear_layout);
 		//linearView.setOrientation(LinearLayout.);
 		//linearView.setGravity(Gravity.CENTER);
@@ -179,6 +312,13 @@ public class MainActivity extends AppCompatActivity
         //frameLayout.setContentView
         /////mGLSurfaceView = new MyGLSurfaceView(this);
 		mGLSurfaceView = (MyGLSurfaceView) findViewById(R.id.glSurfaceViewID);
+
+		// might need to use static multiplayerlistview
+		//////multiPlayerListView = (ListView)findViewById(R.id.multiPlayerList);
+
+
+
+
         ////GLSurfaceView s = new GLSurfaceView(this);
         //s.setRenderer(myGLRenderer);
 
@@ -273,21 +413,10 @@ public class MainActivity extends AppCompatActivity
     }
 
 	public void newGame(View view) {
-
-
-        final Button singlePlayerButton = (Button)findViewById(R.id.singlePlayer);
-        final Button multiPlayerButton = (Button)findViewById(R.id.multiPlayer);
-        final Button newGameButton = (Button)findViewById(R.id.newGame);
-        final Button loadGameButton = (Button)findViewById(R.id.loadGame);
-        final Button highScoresButton = (Button)findViewById(R.id.highScores);
-        final Button exitGameButton = (Button)findViewById(R.id.exitGame);
-
-        final LinearLayout dyn_layout = (LinearLayout)findViewById(R.id.dyn_layout);
-
-       // singlePlayerButton.setVisibility(View.INVISIBLE);
-        //multiPlayerButton.setVisibility(View.INVISIBLE);
-        //highScoresButton.setVisibility(View.INVISIBLE);
-        dyn_layout.removeAllViews();
+		for (int i = 0; i < dyn_layout.getChildCount(); i++) {
+			View v = dyn_layout.getChildAt(i);
+			v.setVisibility(View.GONE);
+		}
 
         dyn_layout.setOrientation(LinearLayout.HORIZONTAL);
         dyn_layout.setGravity(/*Gravity.CENTER |*/ Gravity.TOP );
@@ -298,26 +427,17 @@ public class MainActivity extends AppCompatActivity
         openMenuButton.setText("Menu");
         openMenuButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-
-                //final LinearLayout dyn_layout = (LinearLayout)findViewById(R.id.dyn_layout);
-
-                dyn_layout.removeAllViews();
-
-                /*final Button singlePlayerButton = (Button)findViewById(R.id.singlePlayer);
-                final Button multiPlayerButton = (Button)findViewById(R.id.multiPlayer);
-                final Button newGameButton = (Button)findViewById(R.id.newGame);
-                final Button loadGameButton = (Button)findViewById(R.id.loadGame);
-                final Button highScoresButton = (Button)findViewById(R.id.highScores);
-                final Button exitGameButton = (Button)findViewById(R.id.exitGame); */
-                //exitGameButton.setVisibility(View.INVISIBLE);
-                // TODO Auto-generated method stub
+				for (int i = 0; i < dyn_layout.getChildCount(); i++) {
+					v = dyn_layout.getChildAt(i);
+					v.setVisibility(View.GONE);
+				}
                 dyn_layout.setOrientation(LinearLayout.VERTICAL);
                 dyn_layout.setGravity(Gravity.CENTER_VERTICAL );
 
-                dyn_layout.addView(newGameButton);
-                dyn_layout.addView(loadGameButton);
-                dyn_layout.addView(highScoresButton);
-                dyn_layout.addView(exitGameButton);
+				newGameButton.setVisibility(View.VISIBLE);
+				saveGameButton.setVisibility(View.VISIBLE);
+				loadGameButton.setVisibility(View.VISIBLE);
+				exitGameButton.setVisibility(View.VISIBLE);
             }
         });
         openMenuButton.setVisibility(View.VISIBLE);
@@ -335,55 +455,152 @@ public class MainActivity extends AppCompatActivity
         int statusBarHeight = rectangle.top;
         int contentViewTop = window.findViewById(Window.ID_ANDROID_CONTENT).getTop();
         int titleBarHeight= contentViewTop - statusBarHeight;
-
         Log.i("*** Value :: ", "StatusBar Height= " + statusBarHeight + " , TitleBar Height = " + titleBarHeight);
 
+		mGLSurfaceView.getmRenderer().gameMachine.Advance("SinglePlayerMenu");
 
-        final Button singlePlayerButton = (Button)findViewById(R.id.singlePlayer);
-        final Button multiPlayerButton = (Button)findViewById(R.id.multiPlayer);
-        final Button newGameButton = (Button)findViewById(R.id.newGame);
-        final Button loadGameButton = (Button)findViewById(R.id.loadGame);
-        final Button highScoresButton = (Button)findViewById(R.id.highScores);
-        final Button exitGameButton = (Button)findViewById(R.id.exitGame);
-		final Button backMenuButton = (Button)findViewById(R.id.backMenu);
-
-        final LinearLayout dyn_layout = (LinearLayout)findViewById(R.id.dyn_layout);
-
-        dyn_layout.removeView(singlePlayerButton);
-        dyn_layout.removeView(multiPlayerButton);
-
+		for (int i = 0; i < dyn_layout.getChildCount(); i++) {
+			View v = dyn_layout.getChildAt(i);
+			v.setVisibility(View.GONE);
+		}
 		newGameButton.setVisibility(View.VISIBLE);
 		loadGameButton.setVisibility(View.VISIBLE);
 		backMenuButton.setVisibility(View.VISIBLE);
-
-		//dyn_layout.addView(newGameButton);
-		//dyn_layout.addView(loadGameButton);
-        //dyn_layout.addView(highScoresButton);
-        //dyn_layout.addView(backMenuButton);
-
     }
 
-    public void multiPlayer(View view) {
+	public void multiPlayer(View view) {
+		for (int i = 0; i < dyn_layout.getChildCount(); i++) {
+			View v = dyn_layout.getChildAt(i);
+			v.setVisibility(View.GONE);
+		}
+
+		multiPlayer_layout.setVisibility(View.VISIBLE);
+		backMenuButton.setVisibility(View.VISIBLE);
+		mGLSurfaceView.getmRenderer().gameMachine.Advance("MultiPlayerMenu");
+	}
+
+    public void multiPlayerLogin(View view) {
+
+		if (mLooperThread.mHandler != null) {
+			Message msg = mLooperThread.mHandler.obtainMessage(0);
+
+			String userInput;
+			String username = multiplayer_username_input.getText().toString(); //new String("discmanx");
+			String password = multiplayer_password_input.getText().toString(); //new String("discmanx");
+
+			JSONObject gameData = new JSONObject();
+
+			try {
+				gameData.put("msgType", "multiLogin");
+				gameData.put("username", username);
+				gameData.put("password", password);
+			}
+			catch(JSONException ex) {
+				ex.printStackTrace();
+			}
+
+			msg.obj = gameData;
+			mLooperThread.mHandler.sendMessage(msg);
+		}
+
+		JSONObject gameData = new JSONObject();
 
 
-    }
+		AccountManager am = AccountManager.get(this);
+		Bundle options = new Bundle();
+
+		/*am.getAuthToken(
+				myAccount_,                     // Account retrieved using getAccountsByType()
+				"Manage your tasks",            // Auth scope
+				options,                        // Authenticator-specific options
+				this,                           // Your activity
+				new OnTokenAcquired(),          // Callback called when a token is successfully acquired
+				new Handler(new OnError()));    // Callback called if an error occurs */
+
+		//dyn_layout.removeAllViews();
+
+
+
+	}
+
+	public void createAccount(View view) {
+		for (int i = 0; i < dyn_layout.getChildCount(); i++) {
+			View v = dyn_layout.getChildAt(i);
+			v.setVisibility(View.GONE);
+		}
+
+		createMultiPlayerAccount_layout.setVisibility(View.VISIBLE);
+		backMenuButton.setVisibility(View.VISIBLE);
+		mGLSurfaceView.getmRenderer().gameMachine.Advance("RegisterMultiPlayerMenu");
+
+	}
+
+	public void registerNewAccount(View view) {
+		if (mLooperThread.mHandler != null) {
+			Message msg = mLooperThread.mHandler.obtainMessage(0);
+
+			String username = create_multiplayer_username_input.getText().toString(); //new String("discmanx");
+			String password = create_multiplayer_password_input.getText().toString(); //new String("discmanx");
+			String confirm_password = create_multiplayer_password_confirm_input.getText().toString(); //new String("discmanx");
+
+			JSONObject gameData = new JSONObject();
+
+			try {
+				gameData.put("msgType", "registerNewMultiAccount");
+				gameData.put("username", username);
+				gameData.put("password", password);
+			}
+			catch(JSONException ex) {
+				ex.printStackTrace();
+			}
+
+			msg.obj = gameData;
+			mLooperThread.mHandler.sendMessage(msg);
+		}
+	}
+
+	public void challengeMultiplayer() {
+
+	}
 
 	public void backMenu(View view) {
-
-		final LinearLayout dyn_layout = (LinearLayout)findViewById(R.id.dyn_layout);
-
-		final Button newGameButton = (Button)findViewById(R.id.newGame);
-		final Button loadGameButton = (Button)findViewById(R.id.loadGame);
-		final Button highScoresButton = (Button)findViewById(R.id.highScores);
-		final Button exitGameButton = (Button)findViewById(R.id.exitGame);
-
-		dyn_layout.removeAllViews();
-
-		dyn_layout.addView(newGameButton);
-		dyn_layout.addView(loadGameButton);
-		dyn_layout.addView(highScoresButton);
-		dyn_layout.addView(exitGameButton);
-
+		for (int i = 0; i < dyn_layout.getChildCount(); i++) {
+			View v = dyn_layout.getChildAt(i);
+			v.setVisibility(View.GONE);
+		}
+		// Go back from the current menu state
+		switch (mGLSurfaceView.getmRenderer().gameMachine.CurrentState().GetName())
+		{
+			case "Entry":
+				//  Here is the where start menu will go
+				break;
+			case "SinglePlayerMenu":
+				singlePlayerButton.setVisibility(View.VISIBLE);
+				multiPlayerButton.setVisibility(View.VISIBLE);
+				highScoresButton.setVisibility(View.VISIBLE);
+				exitGameButton.setVisibility(View.VISIBLE);
+				mGLSurfaceView.getmRenderer().gameMachine.Advance("EntryMenu");
+				break;
+			case "MultiPlayerMenu":
+				singlePlayerButton.setVisibility(View.VISIBLE);
+				multiPlayerButton.setVisibility(View.VISIBLE);
+				highScoresButton.setVisibility(View.VISIBLE);
+				exitGameButton.setVisibility(View.VISIBLE);
+				mGLSurfaceView.getmRenderer().gameMachine.Advance("EntryMenu");
+				break;
+			case "RegisterMultiPlayerMenu":
+				multiPlayer_layout.setVisibility(View.VISIBLE);
+				backMenuButton.setVisibility(View.VISIBLE);
+				mGLSurfaceView.getmRenderer().gameMachine.Advance("MultiPlayerMenu");
+				break;
+			default:
+				singlePlayerButton.setVisibility(View.VISIBLE);
+				multiPlayerButton.setVisibility(View.VISIBLE);
+				highScoresButton.setVisibility(View.VISIBLE);
+				exitGameButton.setVisibility(View.VISIBLE);
+				break;
+		}
+		//newGameButton.setVisibility(View.VISIBLE);
 	}
 
 	public void highScores(View view) {
@@ -446,6 +663,7 @@ public class MainActivity extends AppCompatActivity
 			JSONObject gameData = new JSONObject();
 
 			try {
+				gameData.put("msgType", "saveGame");
 				gameData.put("username", username);
 				gameData.put("playerScore", mGLSurfaceView.getmRenderer().getPlayerScore());
 				gameData.put("opponentScore", mGLSurfaceView.getmRenderer().getOpponentScore());
@@ -507,12 +725,78 @@ public class MainActivity extends AppCompatActivity
 		}*/
 	}
 
-	private static void doLongRunningOperation(Message msg) {
-		// Add long running operation here.
-		nc.sendDataWithString(msg.obj.toString());
-		String r = nc.receiveDataFromServer();
-	}
+	/*private class UpdateMultiListView extends AsyncTask<String, Void, String> {
+		@Override
+		protected String doInBackground(String... params) {
+			String url = params[0];
+			return doSomeWork(url);
+		}
+	}*/
 
+	private void doLongRunningOperation(Message msg) {
+		// Add long running operation here.
+
+		// If no connection to server
+		if (nc.sendDataWithString(msg.obj.toString()) == false)
+		{
+			Message msg1 = new Message();
+			msg1.what = 2;
+			msg1.setTarget(mHandler);
+			msg1.sendToTarget();
+			//displayMessage("Error connecting to server.", "Ok", "main");
+		}
+		else {
+			String r = nc.receiveDataFromServer();
+
+			JSONObject serverData;
+			try {
+				serverData = new JSONObject(r);
+
+				switch (serverData.getString("msgType")) {
+					case "multiPlayerList":
+						int length = serverData.getJSONArray("multiPlayers").length();
+
+						JSONArray multiPlayers = serverData.getJSONArray("multiPlayers");
+
+						for (int i = 0; i < multiPlayers.length(); i++) {
+							JSONObject json_data = multiPlayers.getJSONObject(i);
+
+							MultiPlayer mp = new MultiPlayer(json_data.getString("username"), json_data.getInt("id"), json_data.getInt("score"));
+							multiPlayerList.add(mp);
+						}
+						//JSONArray player = /*(JSONObject)*/ multiPlayers.getJSONArray("testList");//   getString (0);
+
+						String name = "test";//player.getString("username");
+						//int score = player.getInt("score");
+						//int id = player.getInt("id");
+						// Display the multiplayer list layout
+						Message msg1 = new Message();
+						msg1.what = 1;
+						msg1.setTarget(mHandler);
+						msg1.sendToTarget();
+						break;
+					case "invalidPassword": Message msg2 = new Message();
+						msg2.what = 3;
+						msg2.setTarget(mHandler);
+						msg2.sendToTarget();
+						//displayMessage("Invalid Password.", "Ok", "main");
+						break;
+					case "invalidUsernameRegisterMultiAccount": Message msg3 = new Message();
+						msg3.what = 4;
+						msg3.setTarget(mHandler);
+						msg3.sendToTarget();
+						//displayMessage("Invalid Password.", "Ok", "main");
+						break;
+					default:
+						break;
+				}
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+
+		}
+	}
+	/*
 	class ClientThread implements Runnable {
 
 		//System.out.println("reached thread run() 0");
@@ -537,9 +821,9 @@ public class MainActivity extends AppCompatActivity
 				System.out.println("reached thread run() 5");
 				e1.printStackTrace();
 				Log.e("YOUR_APP_LOG_TAG", "I got an IOException error", e1);
-			}*/
+			}
 		}
-	}
+	} */
 
 	protected void onDestroy() {
         super.onDestroy();
@@ -592,4 +876,67 @@ public class MainActivity extends AppCompatActivity
         }
         return str;
     }
+
+	private class OnTokenAcquired implements AccountManagerCallback<Bundle> {
+		@Override
+		public void run(AccountManagerFuture<Bundle> result) {
+			// Get the result of the operation from the AccountManagerFuture.
+			/*Bundle bundle = result.getResult();
+
+			// The token is a named value in the bundle. The name of the value
+			// is stored in the constant AccountManager.KEY_AUTHTOKEN.
+			token = bundle.getString(AccountManager.KEY_AUTHTOKEN);
+        ...*/
+		}
+	}
+
+	static class MultiPlayer {
+		String multiUsername;
+		int multiId;
+		int multiScore;
+
+		MultiPlayer(String username, int id, int score) {
+			multiUsername = username;
+			multiId = id;
+			multiScore = score;
+
+		}
+
+		public String getMultiUsername() {
+			return multiUsername;
+		}
+
+		public int getMultiId() {
+			return multiId;
+		}
+
+		public int getMultiScore() {
+			return multiScore;
+		}
+	}
+
+	public void displayMessage(String msgText, String msgButtonText, final String menuLevel) {
+		display_msg_textview.setText(msgText);
+		msg_button.setText(msgButtonText);
+
+		msg_button.setOnClickListener(new View.OnClickListener() {
+			public void onClick(View v) {
+				// menu to navigate to
+				switch (menuLevel) {
+
+					case "current": display_msg_layout.setVisibility(View.GONE);
+						return;
+					case "back": display_msg_layout.setVisibility(View.GONE); //dyn_layout.removeView(display_msg_layout);
+						backMenuButton.performClick();
+						return;
+				}
+			}
+		});
+		display_msg_layout.setVisibility(View.VISIBLE);
+
+	}
+
+	public void handleTouchPoints() {
+
+	}
 }

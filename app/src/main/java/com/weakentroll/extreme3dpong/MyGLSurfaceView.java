@@ -70,7 +70,7 @@ public class MyGLSurfaceView extends GLSurfaceView {
 		float[] mTempMVPMatrix = new float[16];
 
 		float[] mModelMatrix = new float[16];
-		
+
 		// Position the eye in front of the origin.
 		/*final float eyeX = 0.0f;
 		final float eyeY = 0.0f;
@@ -131,10 +131,10 @@ public class MyGLSurfaceView extends GLSurfaceView {
 
 
 		newWorldCubePos[3] = 1.0f;
-		
+
 		Matrix.setIdentityM(mModelMatrix, 0);
 		Matrix.translateM(mModelMatrix, 0, 0.0f, 0.0f, -20.0f);
-	
+
 		Matrix.multiplyMM(mTempMVPMatrix, 0, mTempViewMatrix, 0, mModelMatrix, 0);
 		//Matrix.multiplyMM(mTempMVPMatrix, 0, mTempProjectionMatrix, 0, mTempMVPMatrix, 0);
 
@@ -149,18 +149,18 @@ public class MyGLSurfaceView extends GLSurfaceView {
         newCubePos[1] = y;
         newCubePos[2] = 0.0f;
         newCubePos[3] = 1.0f;
-        
+
         int[] convertedViewMatrix  = { 0, 0, mRenderer.getmWidth(), mRenderer.getmHeight() };
-        
+
         /*for (int i = 0; i < mRenderer.getmViewMatrix().length-1; i++) {
         	convertedViewMatrix[i] = (int)mRenderer.getmViewMatrix()[i];
         }*/
-        
+
         //GLint viewport[4];                  // Where The Viewport Values Will Be Stored
         //GLES20.glGetIntegerv(GL11.GL_VIEWPORT, convertedViewMatrix, 0);           // Retrieves The Viewport Values (X, Y, Width, Height)
-        	
+
         Matrix.multiplyMV(newWorldCubePos, 0, mTempMVPMatrix, 0, newCubePos, 0);
-		
+
 		newWorldCubePos[0] = newWorldCubePos[0] / newWorldCubePos[3];
 		newWorldCubePos[1] = newWorldCubePos[1] / newWorldCubePos[3];
 		newWorldCubePos[2] = newWorldCubePos[2] / newWorldCubePos[3];
@@ -198,10 +198,10 @@ public class MyGLSurfaceView extends GLSurfaceView {
         mRenderer.SetWorldTouchCoords(touchedCoords);
         return true;
     }
-    
 
 
-    
+
+
 
     /** Called when the user clicks the Send button
      *  Wait until the data reply packet is full before parsing it */

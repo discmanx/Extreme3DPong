@@ -15,16 +15,10 @@
         android:id="@+id/dyn_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:weightSum="100"
         android:orientation="vertical"
         android:gravity="center_vertical|center_horizontal" > <!-- android:layout_centerInParent="true"> -->
-        <Button
-            android:id="@+id/saveGame"
-            style="?android:attr/buttonStyleSmall"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:onClick="saveGame"
-            android:text="Save Game"
-            android:visibility="gone"/>
+
         <Button
             android:id="@+id/newGame"
             style="?android:attr/buttonStyleSmall"
@@ -32,6 +26,16 @@
             android:layout_height="wrap_content"
             android:onClick="newGame"
             android:text="New Game"
+            android:background="@drawable/button_background"
+            android:width="250px"
+            android:visibility="gone"/>
+        <Button
+            android:id="@+id/saveGame"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="saveGame"
+            android:text="Save Game"
             android:visibility="gone"/>
         <Button
             android:id="@+id/loadGame"
@@ -87,6 +91,8 @@
             android:onClick="backMenu"
             android:text="Back"
             android:visibility="gone"/>
+
+
             <!--<LinearLayout
                 android:id="@+id/bottomscrollbarlayout"
                 android:layout_width="match_parent"
@@ -105,9 +111,254 @@
                 </HorizontalScrollView> -->
 
            <!-- </LinearLayout> -->
-    </LinearLayout>*
+
+        <LinearLayout
+            android:id="@+id/multiPlayer_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="100px"
+            android:paddingTop="100px"
+            android:paddingLeft="50px"
+            android:paddingRight="50px"
+            android:layout_marginRight="50px"
+            android:layout_marginLeft="50px"
+            android:orientation="vertical"
+            android:gravity="center_vertical|center_horizontal"
+            android:background="#00FF00"
+            android:visibility="gone">
 
 
+                <RelativeLayout
+                    android:orientation="horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/multiplayer_username_label"
+                    android:textSize="40px"
+                    android:layout_alignParentLeft="true"/>
+                <EditText
+                    android:id="@+id/multiplayer_username_input"
+                    android:layout_width="180px"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:background="#00aa00"
+                    android:textSize="40px"
+                    android:imeOptions="actionNext"
+                    android:layout_alignParentRight="true"/>
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:orientation="horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/multiplayer_password_label"
+                        android:textSize="40px"
+                        android:layout_alignParentLeft="true"/>
+                    <EditText
+                        android:id="@+id/multiplayer_password_input"
+                        android:layout_width="180px"
+                        android:layout_height="wrap_content"
+                        android:inputType="textPassword"
+                        android:background="#00aa00"
+                        android:textSize="40px"
+                        android:imeOptions="actionSend"
+                        android:layout_alignParentRight="true"/>
+                </RelativeLayout>
+
+                <Button
+                    android:id="@+id/multiplayer_login_button"
+                    style="?android:attr/buttonStyleSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="multiPlayerLogin"
+                    android:text="Login"/>
+
+                <TextView
+                    android:id="@+id/or__textview"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#000000"
+                    android:textSize="14dp"
+                    android:text="- Or -"/>
+                <Button
+                    android:id="@+id/createaccount_button"
+                    style="?android:attr/buttonStyleSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#000000"
+                    android:textSize="14dp"
+                    android:text="Create Account"
+                    android:onClick="createAccount"/>
+
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/createMultiPlayerAccount_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="100px"
+            android:paddingTop="100px"
+            android:paddingLeft="50px"
+            android:paddingRight="50px"
+            android:layout_marginRight="50px"
+            android:layout_marginLeft="50px"
+            android:orientation="vertical"
+            android:gravity="center_vertical|center_horizontal"
+            android:background="#00FF00"
+            android:visibility="gone">
+
+
+            <RelativeLayout
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/multiplayer_username_label"
+                    android:textSize="40px"
+                    android:layout_alignParentLeft="true"/>
+                <EditText
+                    android:id="@+id/create_multiplayer_username_input"
+                    android:layout_width="180px"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:background="#00aa00"
+                    android:textSize="40px"
+                    android:imeOptions="actionNext"
+                    android:layout_alignParentRight="true"/>
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/multiplayer_password_label"
+                    android:textSize="40px"
+                    android:layout_alignParentLeft="true"/>
+                <EditText
+                    android:id="@+id/create_multiplayer_password_input"
+                    android:layout_width="180px"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword"
+                    android:background="#00aa00"
+                    android:textSize="40px"
+                    android:imeOptions="actionNext"
+                    android:layout_alignParentRight="true"/>
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/create_multiplayer_password_confirm_label"
+                    android:textSize="40px"
+                    android:layout_alignParentLeft="true"/>
+                <EditText
+                    android:id="@+id/create_multiplayer_password_confirm_input"
+                    android:layout_width="180px"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword"
+                    android:background="#00aa00"
+                    android:textSize="40px"
+                    android:imeOptions="actionSend"
+                    android:layout_alignParentRight="true"/>
+            </RelativeLayout>
+
+            <Button
+                android:id="@+id/register_multiplayer_account_button"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="registerNewAccount"
+                android:text="Register New Account"/>
+
+        </LinearLayout>
+
+
+
+        <LinearLayout
+        android:id="@+id/multiPlayerList_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingBottom="200px"
+        android:orientation="vertical"
+        android:gravity="center_vertical|center_horizontal"
+        android:visibility="gone">
+        <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="#00FF00"
+            android:layout_weight="1">
+            <TextView
+                android:id="@+id/text_view_header_username"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:paddingRight="100px"
+                android:textColor="#000000"
+                android:textSize="14dp"
+                android:text="Player"/>
+            <TextView
+                android:id="@+id/text_view_header_score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toRightOf="@+id/text_view_header_username"
+                android:textColor="#000000"
+                android:textSize="14dp"
+                android:text="Wins"/>
+        </RelativeLayout>
+        <ListView android:id="@+id/multiPlayerListView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#00FF00"
+            android:layout_weight="1"
+            android:drawSelectorOnTop="false"
+            android:visibility="gone" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:id="@+id/display_msg_layout"
+        android:layout_width="300px"
+        android:layout_height="300px"
+        android:orientation="vertical"
+        android:layout_centerInParent="true"
+        android:background="#00aa00"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/display_msg_textview"
+            android:layout_width="300px"
+            android:layout_height="200px"
+            android:textColor="#000000"
+            android:textSize="14dp"/>
+        <Button
+            android:id="@+id/msg_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#000000"
+            android:textSize="14dp"/>
+    </LinearLayout>
 <!--
     <android.support.v7.widget.Toolbar
         android:id="@+id/my_toolbar"

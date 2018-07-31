@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.UnknownHostException;
 
 public class NetClient {
 
@@ -21,7 +22,7 @@ public class NetClient {
 
     private String host = null;
     private String macAddress = null;
-    private int port = 7999;
+    private int port = 60001;
 
 
     /**
@@ -34,18 +35,33 @@ public class NetClient {
         this.host = host;
         this.port = port;
         this.macAddress = macAddress;
-    }
+    }//
 
-    private void connectWithServer() {
+    private boolean connectWithServer() {
         try {
             if (socket == null) {
+                System.out.println("reached thread run() 2");
+
                 socket = new Socket(this.host, this.port);
+                System.out.println("reached thread run() 3");
+
                 out = new PrintWriter(socket.getOutputStream());
+                System.out.println("reached thread run() 4");
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                System.out.println("reached thread run() 5");
+
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (UnknownHostException e1) {
+            System.out.println("reached thread run() 6");
+            e1.printStackTrace();
+            return false;
         }
+        catch (IOException e) {
+            System.out.println("reached thread run() 7");
+            e.printStackTrace();
+            return false;
+        }
+        return true;
     }
 
     private void disConnectWithServer() {
@@ -55,6 +71,9 @@ public class NetClient {
                     in.close();
                     out.close();
                     socket.close();
+                    in = null;
+                    out = null;
+                    socket = null;
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -62,12 +81,14 @@ public class NetClient {
         }
     }
 
-    public void sendDataWithString(String message) {
+    public boolean sendDataWithString(String message) {
         if (message != null) {
-            connectWithServer();
+            if (connectWithServer() == false)
+                return false;
             out.write(message);
             out.flush();
         }
+        return true;
     }
 
     public String receiveDataFromServer() {
@@ -79,7 +100,7 @@ public class NetClient {
             while ((charsRead = in.read(buffer)) != -1) {
                 message += new String(buffer).substring(0, charsRead);
             }
-
+            // only disconnect when the player exits multiplayer lobby
             disConnectWithServer(); // disconnect server
             return message;
         } catch (IOException e) {

@@ -14,7 +14,18 @@ class GameMachine extends IStateMachine
     public GameMachine()
     {
         // Create all the fun states in our mini-world
-        GameMachineState entry = new GameMachineState("Entry", "Select a new game, view high score, or choose options.");
+        GameMachineState entry = new GameMachineState("EntryMenu", "Select a single player game, multiplayer game, view high score, or choose options.");
+        GameMachineState singlePlayer = new GameMachineState("SinglePlayerMenu", "Select a new game, load game");
+        GameMachineState saveSinglePlayerGame = new GameMachineState("SaveSinglePlayerGame", "Save a game");
+        GameMachineState loadSinglePlayerGame = new GameMachineState("LoadSinglePlayerGame", "Load a game from save");
+        GameMachineState multiPlayer = new GameMachineState("MultiPlayerMenu", "Login or register.");
+        GameMachineState multiPlayerList = new GameMachineState("MultiPlayerListMenu", "Select a player to challenge.");
+        GameMachineState registerMultiPlayer = new GameMachineState("RegisterMultiPlayerMenu", "Register a new player account.");
+
+
+        GameMachineState viewHighScores = new GameMachineState("ViewHighScores", "View high score.");
+        GameMachineState options = new GameMachineState("ViewOptions", "Choose options.");
+
         GameMachineState pong = new GameMachineState("Pong", "Active Game State.");
         GameMachineState playerWins = new GameMachineState("PlayerWins", "Show player winning animation.");
         GameMachineState opponentWins = new GameMachineState("OpponentWins", "Show player losing animation .");
@@ -23,10 +34,26 @@ class GameMachine extends IStateMachine
         mExit = new GameMachineState("Outside", "You have successfully exited the game.");
 
         // Hook up doors.
-        entry.mNeighbors.add(pong);
+        entry.mNeighbors.add(singlePlayer);
+        entry.mNeighbors.add(multiPlayer);
+        entry.mNeighbors.add(viewHighScores);
         entry.mNeighbors.add(mExit);
 
-        pong.mNeighbors.add(entry);
+        singlePlayer.mNeighbors.add(pong);
+        singlePlayer.mNeighbors.add(saveSinglePlayerGame);
+        singlePlayer.mNeighbors.add(loadSinglePlayerGame);
+        singlePlayer.mNeighbors.add(entry);
+
+        multiPlayer.mNeighbors.add(entry);
+        multiPlayer.mNeighbors.add(multiPlayerList);
+        multiPlayer.mNeighbors.add(registerMultiPlayer);
+
+        multiPlayerList.mNeighbors.add(multiPlayer);
+
+        registerMultiPlayer.mNeighbors.add(multiPlayer);
+
+
+        pong.mNeighbors.add(singlePlayer);
         pong.mNeighbors.add(gameOver);
         pong.mNeighbors.add(playerWins);
         pong.mNeighbors.add(opponentWins);
@@ -39,6 +66,12 @@ class GameMachine extends IStateMachine
         // Add them to the collection
         mStates = new ArrayList<GameMachineState>();
         mStates.add(entry);
+        mStates.add(singlePlayer);
+        mStates.add(saveSinglePlayerGame);
+        mStates.add(loadSinglePlayerGame);
+        mStates.add(multiPlayer);
+        mStates.add(multiPlayerList);
+        mStates.add(registerMultiPlayer);
         mStates.add(pong);
         mStates.add(gameOver);
         mStates.add(playerWins);
