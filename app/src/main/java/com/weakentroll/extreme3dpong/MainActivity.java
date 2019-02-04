@@ -28,6 +28,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.inputmethod.EditorInfo;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -71,6 +72,7 @@ public class MainActivity extends AppCompatActivity
 	private static final int portNumber = 60001;
 	private String serverMsg;
     private static NetClient nc;
+    private Player player;
 
 	private CustomListAdapter customListAdapter;
 	//static ListView multiPlayerListView = null;// = (ListView)findViewById(R.id.multiPlayerList);
@@ -160,8 +162,55 @@ public class MainActivity extends AppCompatActivity
 				switch (inputMessage.what) {
 					case 1: //ArrayAdapter<MultiPlayer> adapter = new ArrayAdapter<MultiPlayer>(MainActivity.this,
 							//android.R.layout.simple_list_item_1, multiPlayerList);
-						customListAdapter = new CustomListAdapter(getApplicationContext(), mLooperThread.mHandler, multiPlayerList);
+						customListAdapter = new CustomListAdapter(getApplicationContext(), mLooperThread.mHandler, multiPlayerList, player);
 						multiPlayerListView.setAdapter(customListAdapter);
+
+						// Click on ListView Row:
+						multiPlayerListView.setOnItemClickListener(new AdapterView.OnItemClickListener()
+						{
+							@Override
+							public void onItemClick(AdapterView<?> arg0, View arg1, int position, long arg3)
+							{
+								MultiPlayer mp = (MultiPlayer)multiPlayerListView.getItemAtPosition(position);
+								// Here i want have values of the clicked row,- like the name and/or id...,- but i get the following:
+								// Output o.toString(): com.example.customlistview.MainActivity$Person@41252310
+								Log.i("TEST", mp.toString());
+
+								long viewId = arg1.getId();
+
+								if (viewId == R.id.challengeMultiplayer) {
+									System.out.println( "Button 1 clicked");
+
+									// get current item to be displayed
+									MainActivity.MultiPlayer currentItem = (MainActivity.MultiPlayer) customListAdapter.getItem(position);
+									if (mLooperThread.mHandler != null) {
+										Message msg = mLooperThread.mHandler.obtainMessage(0);
+
+										String userInput;
+										String fromUsername = player.getUsername();
+										String toUsername = currentItem.multiUsername;
+
+										JSONObject gameData = new JSONObject();
+
+										try {
+											gameData.put("msgType", "challengeMultiPlayer");
+											gameData.put("fromUsername", fromUsername);
+											gameData.put("toUsername", toUsername);
+
+											// get objkect.usernamegameData.put("username", username);
+										} catch (JSONException ex) {
+											ex.printStackTrace();
+										}
+
+										msg.obj = gameData;
+										mLooperThread.mHandler.sendMessage(msg);
+									}
+								} else {
+									System.out.println( "Listview clicked");
+								}
+
+							}
+						});
 
 						for (int i = 0; i < dyn_layout.getChildCount(); i++) {
 							View v = dyn_layout.getChildAt(i);
@@ -559,10 +608,6 @@ public class MainActivity extends AppCompatActivity
 		}
 	}
 
-	public void challengeMultiplayer() {
-
-	}
-
 	public void backMenu(View view) {
 		for (int i = 0; i < dyn_layout.getChildCount(); i++) {
 			View v = dyn_layout.getChildAt(i);
@@ -648,8 +693,12 @@ public class MainActivity extends AppCompatActivity
 		}
 	}
 
+	public void challengeMultiplayer(View view) {
+		System.out.println("challenge button clicked: ");
 
-    // TODO: The socket class cant be used in the main thread where the android UI resides, so it needs to move it into a new thread
+	}
+
+		// TODO: The socket class cant be used in the main thread where the android UI resides, so it needs to move it into a new thread
 	/** Called when the user clicks the Send button
 	 *  Wait until the data reply packet is full before parsing it */
 	public void saveGame(View view) {
@@ -756,6 +805,11 @@ public class MainActivity extends AppCompatActivity
 					case "multiPlayerList":
 						int length = serverData.getJSONArray("multiPlayers").length();
 
+                        JSONObject json_player = serverData.getJSONObject("player");
+                        player = new Player(json_player.getString("username"), null, json_player.getInt("id"), json_player.getInt("score"), 0.0f, 0.0f, 0.0f, 0);
+                        player.setUsername(json_player.getString("username"));
+                        player.setPlayerid(json_player.getInt("id"));
+                        player.setScore(json_player.getInt("score"));
 						JSONArray multiPlayers = serverData.getJSONArray("multiPlayers");
 
 						for (int i = 0; i < multiPlayers.length(); i++) {
@@ -939,4 +993,6 @@ public class MainActivity extends AppCompatActivity
 	public void handleTouchPoints() {
 
 	}
+
+
 }

@@ -94,12 +94,36 @@ public class NetClient {
     public String receiveDataFromServer() {
         try {
             String message = "";
-            int charsRead = 0;
+            /*int charsRead = 0;
             char[] buffer = new char[BUFFER_SIZE];
 
             while ((charsRead = in.read(buffer)) != -1) {
                 message += new String(buffer).substring(0, charsRead);
+            }*/
+            byte[] messageByte = new byte[1000];
+            boolean end = false;
+            int charRead;
+            /*
+            messageByte[0] = (byte)(in.read());
+            int bytesToRead = messageByte[0];*/
+
+            /*char cbuf[] = new char[4];
+            int bytesToRead = in.read(cbuf, 0, 4);*/
+            String bytesToRead = in.readLine();
+
+            while ( !end ) {
+                charRead = in.read();
+                message += (char)charRead;//new String(messageByte, 0, charRead);
+                if (message.length() == Integer.parseInt(bytesToRead) )
+                {
+                    end = true;
+                }
+
+
             }
+            /*while ( (charRead = in.read()) != -1) {
+                message += (char)charRead;
+            }*/
             // only disconnect when the player exits multiplayer lobby
             disConnectWithServer(); // disconnect server
             return message;

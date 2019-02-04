@@ -25,5 +25,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Challenge"
-        android:textSize="14dp"/>
+        android:textSize="14dp"
+        android:focusable="false"
+        />
 </RelativeLayout>

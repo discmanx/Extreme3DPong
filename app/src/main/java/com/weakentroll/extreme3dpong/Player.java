@@ -6,8 +6,57 @@ package com.weakentroll.extreme3dpong;
 
 public class Player {
 
-    private String userName;
+    public Player(String username, String password, int playerid, int score, float locationX, float locationY, float locationZ, int highScore) {
+        this.username = username;
+        this.password = password;
+        this.playerid = playerid;
+        this.score = score;
+        this.locationX = locationX;
+        this.locationY = locationY;
+        this.locationZ = locationZ;
+        this.highScore = highScore;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public void setScore(int score) {
+        this.score = score;
+    }
+
+    public int getHighScore() {
+        return highScore;
+    }
+
+    public void setHighScore(int highScore) {
+        this.highScore = highScore;
+    }
+
+    private String username;
     private String password;
+
+    public int getPlayerid() {
+        return playerid;
+    }
+
+    public void setPlayerid(int playerid) {
+        this.playerid = playerid;
+    }
+
+    private int playerid;
     private int score;
     private float locationX, locationY, locationZ;
     private int highScore;
@@ -26,6 +75,10 @@ public class Player {
         location[2] = locationZ;
 
         return location;
+    }
+
+    public String getUsername() {
+        return username;
     }
 
 }
