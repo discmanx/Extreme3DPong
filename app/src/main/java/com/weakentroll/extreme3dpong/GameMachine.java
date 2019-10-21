@@ -21,6 +21,7 @@ class GameMachine extends IStateMachine
         GameMachineState multiPlayer = new GameMachineState("MultiPlayerMenu", "Login or register.");
         GameMachineState multiPlayerList = new GameMachineState("MultiPlayerListMenu", "Select a player to challenge.");
         GameMachineState registerMultiPlayer = new GameMachineState("RegisterMultiPlayerMenu", "Register a new player account.");
+        GameMachineState activeMatch = new GameMachineState("ActiveMatch", "Fighting opponent!");
 
 
         GameMachineState viewHighScores = new GameMachineState("ViewHighScores", "View high score.");
@@ -48,7 +49,8 @@ class GameMachine extends IStateMachine
         multiPlayer.mNeighbors.add(multiPlayerList);
         multiPlayer.mNeighbors.add(registerMultiPlayer);
 
-        multiPlayerList.mNeighbors.add(multiPlayer);
+        multiPlayerList.mNeighbors.add(activeMatch);
+
 
         registerMultiPlayer.mNeighbors.add(multiPlayer);
 
@@ -76,6 +78,7 @@ class GameMachine extends IStateMachine
         mStates.add(gameOver);
         mStates.add(playerWins);
         mStates.add(opponentWins);
+        mStates.add(activeMatch);
         mStates.add(mExit);
 
         // Finally set my starting point

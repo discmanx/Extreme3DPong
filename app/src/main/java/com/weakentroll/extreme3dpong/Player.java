@@ -57,6 +57,7 @@ public class Player {
     }
 
     private int playerid;
+    private int sessionId;
     private int score;
     private float locationX, locationY, locationZ;
     private int highScore;
@@ -79,6 +80,14 @@ public class Player {
 
     public String getUsername() {
         return username;
+    }
+
+    public int getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(int sessionId) {
+        this.sessionId = sessionId;
     }
 
 }

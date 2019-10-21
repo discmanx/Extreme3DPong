@@ -1,6 +1,6 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/my_linear_layout"
+    android:id="@+id/my_relative_layout"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -9,6 +9,7 @@
     android:id="@+id/glSurfaceViewID"
     android:layout_width="match_parent"
     android:layout_height="match_parent" />
+
 
 
     <LinearLayout
@@ -359,6 +360,36 @@
             android:textColor="#000000"
             android:textSize="14dp"/>
     </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/display_challenge_layout"
+        android:layout_width="500px"
+        android:layout_height="500px"
+        android:orientation="vertical"
+        android:layout_centerInParent="true"
+        android:background="#00aa00"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/display_challenge_textview"
+            android:layout_width="400px"
+            android:layout_height="300px"
+            android:textColor="#000000"
+            android:textSize="14dp"/>
+        <Button
+            android:id="@+id/challenge_yes_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#000000"
+            android:textSize="14dp"
+            android:text="Accept"/>
+        <Button
+            android:id="@+id/challenge_no_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#000000"
+            android:textSize="14dp"
+            android:text="Decline"/>
+    </LinearLayout>
 <!--
     <android.support.v7.widget.Toolbar
         android:id="@+id/my_toolbar"
@@ -399,5 +430,20 @@
             android:layout_height="wrap_content"
             android:id="@+id/GLSurfaceView1" /> -->
    <!-- </FrameLayout> -->
+    <ImageView
+        android:id="@+id/weakentroll_splashview"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter" />
 
+    <TextView
+        android:id="@+id/countdown_textview"
+        android:layout_width="400px"
+        android:layout_height="300px"
+        android:layout_centerInParent="true"
+        android:background="#00aa00"
+        android:textColor="#000000"
+        android:textSize="14dp"
+        android:visibility="gone"/>
 </RelativeLayout>

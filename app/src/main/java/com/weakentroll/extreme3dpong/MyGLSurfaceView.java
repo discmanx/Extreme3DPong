@@ -5,6 +5,7 @@ import android.content.Context;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLU;
 import android.opengl.Matrix;
+import android.os.Message;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 
@@ -196,6 +197,8 @@ public class MyGLSurfaceView extends GLSurfaceView {
         touchedCoords[1] = e.getY();
 
         mRenderer.SetWorldTouchCoords(touchedCoords);
+
+        // TODO: Compare the glsurfaceview touch coords and the rendered touch coords!!
         return true;
     }
 

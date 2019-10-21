@@ -9,8 +9,11 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.concurrent.Semaphore;
+import android.os.Message;
 
-public class NetClient {
+
+public class NetClient implements Runnable {
 
     /**
      * Maximum size of buffer
@@ -23,6 +26,9 @@ public class NetClient {
     private String host = null;
     private String macAddress = null;
     private int port = 60001;
+    private boolean serverUp = false;
+    private Semaphore available = null;
+
 
 
     /**
@@ -31,13 +37,47 @@ public class NetClient {
      * @param port
      * @param macAddress
      */
-    public NetClient(String host, int port, String macAddress) {
+    public NetClient(String host, int port, String macAddress, Semaphore available) {
         this.host = host;
         this.port = port;
         this.macAddress = macAddress;
+        this.available = available;
     }//
 
-    private boolean connectWithServer() {
+    @Override
+    public void run()  {
+
+        while (!Thread.currentThread().isInterrupted()) {
+
+            if (isServerUp() == true) {
+                try {
+                //System.out.println("netclient run() available.acquire()");
+                    available.acquire();
+                    String r = receiveDataFromServer();
+                    if (r != null) {
+                        System.out.print(r);
+                        Message msg = new Message();
+                        msg.what = 6;
+                        msg.obj = r;
+                        MainActivity.mHandler.sendMessage(msg);
+                    }
+                //System.out.println("netclient run() available.release()");
+
+                available.release();
+                }
+                catch ( InterruptedException e) {
+                    //available.release();
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public boolean isServerUp() {
+        return serverUp;
+    }
+
+    public boolean connectWithServer() {
         try {
             if (socket == null) {
                 System.out.println("reached thread run() 2");
@@ -49,6 +89,8 @@ public class NetClient {
                 System.out.println("reached thread run() 4");
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 System.out.println("reached thread run() 5");
+                serverUp = true;
+
 
             }
         } catch (UnknownHostException e1) {
@@ -64,7 +106,7 @@ public class NetClient {
         return true;
     }
 
-    private void disConnectWithServer() {
+    public void disConnectWithServer() {
         if (socket != null) {
             if (socket.isConnected()) {
                 try {
@@ -74,6 +116,7 @@ public class NetClient {
                     in = null;
                     out = null;
                     socket = null;
+                    serverUp = false;
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -83,16 +126,29 @@ public class NetClient {
 
     public boolean sendDataWithString(String message) {
         if (message != null) {
-            if (connectWithServer() == false)
-                return false;
-            out.write(message);
-            out.flush();
+            try {
+                available.acquire();
+                System.out.println("netclient senddatawithstring() available.acquire()");
+
+                out.write(message);
+                out.flush();
+                available.release();
+                System.out.println("netclient senddatawithstring()  available.release();");
+            } catch (InterruptedException e) {
+                System.out.println("netclient senddatawithstring() catch interruptedexcepetion called");
+            }
         }
         return true;
     }
 
-    public String receiveDataFromServer() {
+    public synchronized String receiveDataFromServer() {
+        //System.out.println("netclient receivedatafromserver()  ");
+
         try {
+            //available.acquire();
+          //  System.out.println("netclient receivedatafromserver() available.acquire()");
+
+
             String message = "";
             /*int charsRead = 0;
             char[] buffer = new char[BUFFER_SIZE];
@@ -109,28 +165,37 @@ public class NetClient {
 
             /*char cbuf[] = new char[4];
             int bytesToRead = in.read(cbuf, 0, 4);*/
+            if (in.ready() == false) {
+                //System.out.println("netclient receivedatafromserver() in.ready() == false called, returned null;");
+                //available.release();
+                return null;
+            }
+
             String bytesToRead = in.readLine();
+            System.out.println("netclient receivedatafromserver() bytestoread = " + bytesToRead);
 
             while ( !end ) {
                 charRead = in.read();
+                System.out.print(charRead);
                 message += (char)charRead;//new String(messageByte, 0, charRead);
                 if (message.length() == Integer.parseInt(bytesToRead) )
                 {
                     end = true;
                 }
-
-
             }
             /*while ( (charRead = in.read()) != -1) {
                 message += (char)charRead;
             }*/
-            // only disconnect when the player exits multiplayer lobby
-            disConnectWithServer(); // disconnect server
+            //available.release();
+            //System.out.println("netclient receivedatafromserver() available.release()");
+
             return message;
         } catch (IOException e) {
             return "Error receiving response:  " + e.getMessage();
-        }
+        } /*catch (InterruptedException e) {
+            System.out.println("netclient receivedatafromserver() catch interruptedexcepetion called");
+
+            return "Error receiving response:  " + e.getMessage();//printStackTrace();
+        }*/
     }
-
-
 }

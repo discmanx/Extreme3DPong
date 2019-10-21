@@ -26,6 +26,8 @@ import java.util.Random;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+// TODO: add 3 bars to pong life
+//
 /**
  * This class implements our custom renderer. Note that the GL10 parameter
  * passed in is unused for OpenGL ES 2.0 renderers -- the static class GLES20 is
@@ -52,6 +54,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
 	Puck thePuck;
     Crosshair crosshair;
+    Player player, opponent;
+    float [] opponentLocation = { -5.0f, 5.0f, 20.0f };
     BottomScrollBar bottomScrollBar;
 	FPSCounter fpsCounter = new FPSCounter();
     private GLText glText;                             // A GLText Instance
@@ -98,7 +102,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 	private int mWidth;
     private int mHeight;
     private float rawTouchY;
-    private float touchedX, touchedY, touchedZ;
+    public float touchedX, touchedY, touchedZ;
     float[] outputCoordObj = new float[4];
     
     private float worldPlayerMinX = 0.0f, worldPlayerMaxX = 0.0f, worldPlayerMinY = 0.0f, worldPlayerMaxY = -1.0f, worldPlayerMinZ = 0.0f , worldPlayerMaxZ = 0.0f;
@@ -820,7 +824,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Draw the opponent cube.
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, -5.0f, 5.0f, -20.0f);
+        Matrix.translateM(mModelMatrix, 0, opponentLocation[0], -(opponentLocation[1])/*invert the opponent player y */,/*-5.0f, 5.0f,*/ -20.0f);
 
         // Set the active texture unit to texture unit 0.
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -884,7 +888,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                 -5.0f, upX, upY, upZ);
         // Draw bottom scrollbar
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, 0.55f, -8.0f, -20.0f);
+        Matrix.translateM(mModelMatrix, 0, 0.0f, -8.0f, -20.0f);
 
         drawBottomScrollBar();
 
@@ -1023,6 +1027,18 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                     gameMachine.Advance("OpponentWins");
                 }
                 break;
+                // Why wont this let me move indent?
+            case "ActiveMatch":
+                // send the player data to the server
+                opponentLocation = opponent.getLocation();
+                // get the checkpuckcollision and move puck data fom the server
+                if (playerScore > 1) {
+                    gameMachine.Advance("PlayerWins");
+                }
+                else if (opponentScore > 3) {
+                    gameMachine.Advance("OpponentWins");
+                }
+                break;
 
             case "PlayerWins":
                 // TODO: move the win condition handling to here
@@ -1114,11 +1130,16 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         //glText.drawC( "Test String :)", 0, 0, 0 );          // Draw Test String
         //glText.draw( "Diagonal 1", 0.0f, 0.0f, -9.0f);                // Draw Test String
         //glText.draw( "Column 1", 100, 100, 90);              // Draw Test String
-        glText.draw( "FPS: " + fpsCounter.fps, -120.0f, 150.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        if (gameMachine.CurrentState().GetName() == "ActiveMatch") {
+            glText.draw( player.getUsername() + ": " + form.format(player.getScore())  , -120.0f, 50.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+            glText.draw( opponent.getUsername() + ": " + form.format(opponent.getScore())  , -120.0f, 60.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+
+        }
+        glText.draw( "FPS: " + fpsCounter.fps, -120.0f, 150.0f, -450.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "Touched X:" + form.format(touchedX) + ", Y: " + form.format(touchedY) + ", Z: " + form.format(touchedZ), -120.0f, 140.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "OnDrawFrame Time: " + form.format(onDrawFrametime)  , -120.0f, 130.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Player TL: " + form.format(worldPlayerMinX) + ", " + form.format(worldPlayerMaxY) + ", BR: " + form.format(worldPlayerMaxX) + ", " + form.format(worldPlayerMinY), -120.0f, 120.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Opponent TL: " + form.format(worldOpponentMinX) + ", " + form.format(worldOpponentMaxY) + ", BR: " + form.format(worldOpponentMaxX) + ", " + form.format(worldOpponentMinY), -120.0f, 110.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "OnDrawFrame Time: " + form.format(onDrawFrametime)  , -120.0f, 130.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Player TL: " + form.format(worldPlayerMinX) + ", " + form.format(worldPlayerMaxY) + ", BR: " + form.format(worldPlayerMaxX) + ", " + form.format(worldPlayerMinY), -120.0f, 120.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Opponent TL: " + form.format(worldOpponentMinX) + ", " + form.format(worldOpponentMaxY) + ", BR: " + form.format(worldOpponentMaxX) + ", " + form.format(worldOpponentMinY), -120.0f, 110.0f, -450.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "Puck TopLeft: " + form.format(worldPuckMinX) + ", " + form.format(worldPuckMaxY), -120.0f, 100.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( ", BottomR: " + form.format(worldPuckMaxX) + ", " + form.format(worldPuckMinY), -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "SCORE", -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
@@ -1131,8 +1152,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         //glText.draw( "BottomScrollBarHeightGreenCalc: " + form.format(worldBottomScrollGreenHeight) , -120.0f, 60.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "BottomScrollBarHeightActual: " + form.format(worldBottomScrollBarMaxY - worldBottomScrollBarMinY) , -120.0f, 50.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "World TouchX: " + form.format(touchedX) + ", TouchY: " + form.format(touchedY) , -120.0f, 160.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Raw Touch Y: " + form.format(rawTouchY)  , -120.0f, 170.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "World TouchX: " + form.format(touchedX) + ", TouchY: " + form.format(touchedY) , -120.0f, 160.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Raw Touch Y: " + form.format(rawTouchY)  , -120.0f, 170.0f, -450.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "Server Ping: "   , -120.0f, 40.0f, -400.0f, 0.0f, 0.0f, 0.0f);
 
         //glText.draw( "XOffset[0]: " + XOffset[0] , -120.0f, 100.0f, -20.0f, 0.0f, 0.0f, 0.0f);
@@ -1943,5 +1964,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     public void youLose() {
         // Everything on screen explodes, YOU LOSE! featured prominently
+    }
+    public void setOpponent(Player opponent) {
+        this.opponent = opponent;
     }
 }
