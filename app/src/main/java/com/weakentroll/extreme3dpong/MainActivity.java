@@ -193,9 +193,9 @@ public class MainActivity extends AppCompatActivity
 
 									JSONObject json_player = serverData.getJSONObject("player");
 									player = new Player(json_player.getString("username"), null, json_player.getInt("id"), json_player.getInt("score"), 0.0f, -5.0f, -20.0f, 0);
-									player.setUsername(json_player.getString("username"));
+									/*player.setUsername(json_player.getString("username")); NOT CALLED!!!!
 									player.setPlayerid(json_player.getInt("id"));
-									player.setScore(json_player.getInt("score"));
+									player.setScore(json_player.getInt("score"));*/
 									JSONArray multiPlayers = serverData.getJSONArray("multiPlayers");
 
 									multiPlayerList.clear();
@@ -401,9 +401,10 @@ public class MainActivity extends AppCompatActivity
 
 									JSONObject json_player = serverData.getJSONObject("player");
 									player = new Player(json_player.getString("username"), null, json_player.getInt("id"), json_player.getInt("score"), 0.0f, 0.0f, 0.0f, 0);
-									player.setUsername(json_player.getString("username"));
+									mGLSurfaceView.getmRenderer().setPlayer(player);
+								    /*player.setUsername(json_player.getString("username"));
 									player.setPlayerid(json_player.getInt("id"));
-									player.setScore(json_player.getInt("score"));
+									player.setScore(json_player.getInt("score"));*/
 									JSONArray multiPlayers = serverData.getJSONArray("multiPlayers");
 
 									multiPlayerList.clear();
@@ -458,11 +459,12 @@ public class MainActivity extends AppCompatActivity
 									msg5.sendToTarget();
                                     break;
 								case "launchingMatch":
-									activeMatch = true;
 									player.setSessionId(serverData.getInt("sessionId"));
 									opponent.setUsername(serverData.getString("username"));
 									opponent.setPlayerid(serverData.getInt("playerId"));
 									mGLSurfaceView.getmRenderer().setOpponent(opponent);
+
+									activeMatch = true;
 									mGLSurfaceView.getmRenderer().gameMachine.Advance("ActiveMatch");
 									Message msg7 = new Message();
 									msg7.what = 10;
@@ -476,6 +478,10 @@ public class MainActivity extends AppCompatActivity
 
 									opponent.setLocation(locationX,locationY,locationZ); // needed? find where used
 									mGLSurfaceView.getmRenderer().opponent.setLocation(locationX, locationY, locationZ);
+
+									float posX = (float)serverData.getDouble("puck.posX");
+									float posY = (float)serverData.getDouble("puck.posY");
+									mGLSurfaceView.getmRenderer().setPuck(posX, posY);
 
 									JSONObject activeMatchSendData = new JSONObject();
 									activeMatchSendData.put("msgType", "activeMatchSendData");

@@ -694,7 +694,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         //Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
 
-        // Draw the player cube.
+        // Draw the player cube
         Matrix.setIdentityM(mModelMatrix, 0);
         Matrix.translateM(mModelMatrix, 0, /*outputCoordObj[0]*/ touchedX /* (fWProjected/ (fW / touchedX) ) */, -5.0f, -20.0f);
 
@@ -753,7 +753,15 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Draw the puck
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, thePuck.posX, thePuck.posY, -20.0f);
+        if (gameMachine.CurrentState().GetName() == "ActiveMatch") {
+            if (player.getPlayerid() != player.getSessionId()) {
+                Matrix.translateM(mModelMatrix, 0, thePuck.posX, -thePuck.posY, -20.0f);
+            } else
+                Matrix.translateM(mModelMatrix, 0, thePuck.posX, thePuck.posY, -20.0f);
+        }
+        else
+            Matrix.translateM(mModelMatrix, 0, thePuck.posX, thePuck.posY, -20.0f);
+
 
         // Need to verify the texture gen array stays at 1 length?
         //final int[] textureHandle = new int[1];
@@ -1133,6 +1141,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         if (gameMachine.CurrentState().GetName() == "ActiveMatch") {
             glText.draw( player.getUsername() + ": " + form.format(player.getScore())  , -120.0f, 50.0f, -450.0f, 0.0f, 0.0f, 0.0f);
             glText.draw( opponent.getUsername() + ": " + form.format(opponent.getScore())  , -120.0f, 60.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+            glText.draw( "puck.posY: " + form.format(thePuck.posY)  , -120.0f, 190.0f, -450.0f, 0.0f, 0.0f, 0.0f);
 
         }
         glText.draw( "FPS: " + fpsCounter.fps, -120.0f, 150.0f, -450.0f, 0.0f, 0.0f, 0.0f);
@@ -1142,9 +1151,9 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         glText.draw( "Opponent TL: " + form.format(worldOpponentMinX) + ", " + form.format(worldOpponentMaxY) + ", BR: " + form.format(worldOpponentMaxX) + ", " + form.format(worldOpponentMinY), -120.0f, 110.0f, -450.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "Puck TopLeft: " + form.format(worldPuckMinX) + ", " + form.format(worldPuckMaxY), -120.0f, 100.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( ", BottomR: " + form.format(worldPuckMaxX) + ", " + form.format(worldPuckMinY), -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        //glText.draw( "SCORE", -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        //glText.draw( "Player: " + playerScore , -120.0f, 80.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        //glText.draw( "Opponent: " + opponentScore , -120.0f, 70.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "SCORE", -120.0f, 90.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Player: " + playerScore , -120.0f, 80.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Opponent: " + opponentScore , -120.0f, 70.0f, -450.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "fW: " + form.format(this.fW)  + ", fH: " + form.format(this.fH),  -120.0f, 180.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "BottomScrollBar TL: " + form.format(worldBottomScrollBarMinX) + ", " + form.format(worldBottomScrollBarMaxY), -120.0f, 210.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "BottomScrollBar BR: " + form.format(worldBottomScrollBarMaxX) + ", " + form.format(worldBottomScrollBarMinY), -120.0f, 200.0f, -400.0f, 0.0f, 0.0f, 0.0f);
@@ -1967,5 +1976,15 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     }
     public void setOpponent(Player opponent) {
         this.opponent = opponent;
+    }
+
+    public void setPlayer(Player player) {
+        this.player = player;
+    }
+
+
+    public void setPuck(float posX, float posY) {
+        this.thePuck.posX = posX;
+        this.thePuck.posY = posY;
     }
 }
