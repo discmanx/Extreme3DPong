@@ -22,9 +22,15 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.text.DecimalFormat;
 import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
+
+import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
+import static android.opengl.Matrix.multiplyMM;
+import static android.opengl.Matrix.rotateM;
 
 // TODO: add 3 bars to pong life
 //
@@ -55,7 +61,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 	Puck thePuck;
     Crosshair crosshair;
     Player player, opponent;
-    float [] opponentLocation = { -5.0f, 5.0f, 20.0f };
+    float [] opponentLocation = { 0.0f, 5.0f, 20.0f };
     BottomScrollBar bottomScrollBar;
 	FPSCounter fpsCounter = new FPSCounter();
     private GLText glText;                             // A GLText Instance
@@ -63,9 +69,16 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     int negativezcount = 0;
     int positivezcount = 0;
     long startTime, endTime, onDrawFrametime;
+    public boolean debugFlag = false;
 
-    private int opponentScore = 0;
-    private int playerScore = 0;
+    // Skybox
+    private SkyboxShaderProgram skyboxProgram;
+    private Skybox skybox;
+    private int skyboxTexture;
+    float xRotation = 0.0f;
+
+    //private int opponentScore = 0;
+    //private int playerScore = 0;
 
     private float fieldWidth, fieldHeight, fW, fH, fWidthFar, fHeightFar;
 
@@ -147,7 +160,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 	/** Store our model data in a float buffer. */
 	private final FloatBuffer mCubePositions;
 	private final FloatBuffer mCubeColors;
-	private final FloatBuffer mCubeNormals;
+    private final FloatBuffer mOpponentCubeColors;
+    private final FloatBuffer mCubeNormals;
 	private final FloatBuffer mCubeTextureCoordinates;
 
 	/** This will be used to pass in the transformation matrix. */
@@ -212,6 +226,9 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 	/** This is a handle to our cube shading program. */
 	private int mProgramHandle;
 
+    /** This is a handle to our skybox shading program. */
+    private int mSkyboxProgramHandle;
+
 	/** This is a handle to our light point program. */
 	private int mPointProgramHandle;
 
@@ -235,6 +252,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		thePuck = new Puck();
         crosshair = new Crosshair();
         bottomScrollBar = new BottomScrollBar();
+        player = new Player(null, null, 0,
+                0, -5.0f, 5.0f, -20.0f, 0);
+        opponent = new Player(null, null, 0,
+                0, -5.0f, 5.0f, -20.0f, 0);
 		
 		// X, Y, Z
 		/*final float[] cubePositionData = {
@@ -331,15 +352,22 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 				1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
 				1.0f, 0.0f, 1.0f, 1.0f };
 */
-        float[] frontFaceRed = { 1.0f, 0.0f, 0.0f, 1.0f } ;
-        float[] rightFaceGreen = { 0.0f, 1.0f, 0.0f, 1.0f } ;
-        float[] backFaceBlue = { 0.0f, 0.0f, 1.0f, 1.0f } ;
+        float[] faceDarkRed = { 0.6f, 0.0f, 0.0f, 1.0f } ;
+        float[] faceLightRed = { 1.0f, 0.0f, 0.0f, 1.0f } ;
+
+        float[] faceDarkBlue = { 0.0f, 0.0f, 0.6f, 1.0f } ;
+        float[] faceLightBlue = { 0.0f, 0.0f, 1.0f, 1.0f } ;
+
         float[] LeftFaceYellow = { 1.0f, 1.0f, 0.0f, 1.0f } ;
         float[] topFaceCyan = { 0.0f, 1.0f, 1.0f, 1.0f } ;
         float[] bottomFaceMagenta = { 1.0f, 0.0f, 1.0f, 1.0f } ;
 
-        float[] cubeColorData = skeletalShapeBuilder.generateCubeColors(frontFaceRed, rightFaceGreen, backFaceBlue, LeftFaceYellow ,
-                topFaceCyan, bottomFaceMagenta, 4);
+        //float[] cubeColorData = skeletalShapeBuilder.generateCubeColors(frontFaceRed, rightFaceGreen, backFaceBlue, LeftFaceYellow ,
+        //        topFaceCyan, bottomFaceMagenta, 4);
+        float[] cubeColorData = skeletalShapeBuilder.generateCubeColors(faceLightBlue, faceLightBlue, faceLightBlue, faceLightBlue ,
+                        faceDarkBlue, faceLightBlue, 4);
+        float[] opponentCubeColorData = skeletalShapeBuilder.generateCubeColors(faceLightRed, faceLightRed, faceLightRed, faceLightRed ,
+                faceDarkRed, faceLightRed, 4);
 
 		// X, Y, Z
 		// The normal is used in light calculations and is a vector which points
@@ -434,6 +462,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 				.allocateDirect(cubeColorData.length * mBytesPerFloat)
 				.order(ByteOrder.nativeOrder()).asFloatBuffer();
 		mCubeColors.put(cubeColorData).position(0);
+        mOpponentCubeColors = ByteBuffer
+                .allocateDirect(opponentCubeColorData.length * mBytesPerFloat)
+                .order(ByteOrder.nativeOrder()).asFloatBuffer();
+        mOpponentCubeColors.put(opponentCubeColorData).position(0);
+
 
 		mCubeNormals = ByteBuffer
 				.allocateDirect(cubeNormalData.length * mBytesPerFloat)
@@ -460,8 +493,9 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
 	@Override
 	public void onSurfaceCreated(GL10 glUnused, EGLConfig config) {
-		// Set the background clear color to white.
-		GLES20.glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+
+        // Set the background clear color to white.
+		GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
         // Create the GLText
         glText = new GLText(mActivityContext.getAssets());
@@ -482,9 +516,9 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                 int randomNum = randomGenerator.nextInt((max - min) + 1) + min;
                 //int randomInt = randomGenerator.nextInt(100);
 
-                float randVel1X = randomNum / 10000.0f;
+                float randVel1X = randomNum / 3000.0f;
                 randomNum = randomGenerator.nextInt((max - min) + 1) + min;
-                float randVel1Y = randomNum / 10000.0f;
+                float randVel1Y = randomNum / 3000.0f;
 
                 XOffsetIncr[((i / 3) - 1)] = randVel1X;
                 YOffsetIncr[((i / 3) - 1)] = randVel1Y;
@@ -557,12 +591,20 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         mTextureDataHandle[3] = TextureHelper.loadTexture(mActivityContext,
                 R.drawable.square_crosshair, ShapeTypes.crosshair, touchedX, touchedY, touchedZ, worldPlayerMinX, worldPlayerMaxX, worldPlayerMinY, worldPlayerMaxY, worldPlayerMinZ, worldPlayerMaxZ);
 
+
+
+        skyboxProgram = new SkyboxShaderProgram(mActivityContext);
+        skybox = new Skybox();
+        skyboxTexture = TextureHelper.loadCubeMap(mActivityContext,
+                new int[] { R.drawable.skybox_autum_forest_right, R.drawable.skybox_pine_forest_left ,
+                        R.drawable.skybox_autum_forest_bottom, R.drawable.skybox_autum_forest_top,
+                        R.drawable.skybox_pine_forest_front, R.drawable.skybox_autum_forest_back});
     }
 
 	@Override
 	public void onSurfaceChanged(GL10 glUnused, int width, int height) {
 
-        /* GLES20.glViewport(0, 0, width, height);
+         GLES20.glViewport(0, 0, width, height);/*
         float ratio = (float) width / height;
 
         // Take into account device orientation
@@ -630,7 +672,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         float left = ratio * bottom;
         float right = ratio * top;
         Matrix.perspectiveM(mProjectionMatrix, 0, 45.0f, ratio, near, far); */
-        //Matrix.perpectiveM(mProjectionMatrix, 0, 45.0f, ratio, near, far)
+        //Matrix.perpectiveM(mProjectionMatrix, 0, 45.0f, ratio, near, far);
 	}
 
     @Override
@@ -642,10 +684,24 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         worldOpponentMinX = 1.0f; worldOpponentMaxX = -1.0f; worldOpponentMinY = 1.0f; worldOpponentMaxY = -1.0f; worldOpponentMinZ = 0.0f ; worldOpponentMaxZ = 0.0f;
         worldPuckMinX = 1.0f; worldPuckMaxX = -1.0f; worldPuckMinY = 1.0f; worldPuckMaxY = -1.0f; worldPuckMinZ = 0.0f ; worldPuckMaxZ = 0.0f;
 
+        GLES20.glClear(GL_COLOR_BUFFER_BIT);
+        GLES20.glDisable(GLES20.GL_BLEND);
+
+
+        drawSkybox();
+
+        GLES20.glEnable(GLES20.GL_BLEND);
+        //Matrix.setIdentityM(mViewMatrix, 0);
+        //rotateM(mViewMatrix, 0, -xRotation, 0f, 1f, -20.0f);
+        //multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
+
+        //drawParticles();
+
+
         // Redraw background color
-        int clearMask = GLES20.GL_COLOR_BUFFER_BIT;
+        /* Without skybox, use this - int clearMask = GL_COLOR_BUFFER_BIT; */
         //GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
-        GLES20.glClear(clearMask);
+        /*GLES20.glClear(clearMask);*/
 
         //Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
 
@@ -718,8 +774,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                 else if (zFloat.compareTo(-1.0f) == 0)
                     negativezcount++;*/
 
-                Matrix.multiplyMM(mTempMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
-                Matrix.multiplyMM(mTempMVPMatrix, 0, mProjectionMatrix, 0, mTempMVPMatrix, 0);
+                multiplyMM(mTempMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+                multiplyMM(mTempMVPMatrix, 0, mProjectionMatrix, 0, mTempMVPMatrix, 0);
 
                 Matrix.multiplyMV(newWorldCubePos, 0, mTempMVPMatrix, 0, newCubePos, 0);
 
@@ -749,7 +805,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             //mModelMatrix * originalCubeVertices = newCubeVertices;
         }
 
-        drawCube();
+        drawCube(0);
 
         // Draw the puck
         Matrix.setIdentityM(mModelMatrix, 0);
@@ -797,8 +853,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                 newPuckCubePos[3] = 1.0f;
                 newPuckWorldCubePos[3] = 1.0f;
 
-                Matrix.multiplyMM(mPuckTempMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
-                Matrix.multiplyMM(mPuckTempMVPMatrix, 0, mProjectionMatrix, 0, mPuckTempMVPMatrix, 0);
+                multiplyMM(mPuckTempMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+                multiplyMM(mPuckTempMVPMatrix, 0, mProjectionMatrix, 0, mPuckTempMVPMatrix, 0);
 
                 Matrix.multiplyMV(newPuckWorldCubePos, 0, mPuckTempMVPMatrix, 0, newPuckCubePos, 0);
 
@@ -832,7 +888,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // Draw the opponent cube.
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, opponentLocation[0], -(opponentLocation[1])/*invert the opponent player y */,/*-5.0f, 5.0f,*/ -20.0f);
+        if (gameMachine.CurrentState().GetName() == "ActiveMatch") {
+            Matrix.translateM(mModelMatrix, 0, opponentLocation[0], -opponentLocation[1], -20.0f);
+        }
+        else
+            Matrix.translateM(mModelMatrix, 0, opponentLocation[0], opponentLocation[1], -20.0f);
 
         // Set the active texture unit to texture unit 0.
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -858,8 +918,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                 newOpponentCubePos[3] = 1.0f;
                 //newOpponentWorldCubePos[3] = 1.0f;+++++++++++++++++
 
-                Matrix.multiplyMM(mOpponentTempMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
-                Matrix.multiplyMM(mOpponentTempMVPMatrix, 0, mProjectionMatrix, 0, mOpponentTempMVPMatrix, 0);
+                multiplyMM(mOpponentTempMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+                multiplyMM(mOpponentTempMVPMatrix, 0, mProjectionMatrix, 0, mOpponentTempMVPMatrix, 0);
 
                 Matrix.multiplyMV(newOpponentWorldCubePos, 0, mOpponentTempMVPMatrix, 0, newOpponentCubePos, 0);
 
@@ -889,16 +949,18 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             //mModelMatrix * originalCubeVertices = newCubeVertices;
         }
 
-        drawCube();
+        drawCube(1);
 
 
-        Matrix.setLookAtM(mViewMatrix, 0, 0.0f, 0.0f, 0.0f, lookX, lookY,
-                -5.0f, upX, upY, upZ);
+        Matrix.setLookAtM(mViewMatrix, 0, 0.0f, 1.0f, 0.0f, 0.0f,
+                1.0f, -1.0f, 0.0f, 1.0f, 0.0f);
+
         // Draw bottom scrollbar
         Matrix.setIdentityM(mModelMatrix, 0);
         Matrix.translateM(mModelMatrix, 0, 0.0f, -8.0f, -20.0f);
 
         drawBottomScrollBar();
+        
 
         float[] mTempProjectionMatrix;
         mTempProjectionMatrix = new float[16];
@@ -971,8 +1033,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             //mModelMatrix * originalCubeVertices = newCubeVertices;
         }
 
-        Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
-                -20.0f, upX, upY, upZ);
+        //Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
+        //        -20.0f, upX, upY, upZ);
 
     /*
         for (int i = 0; i < bottomScrollBar.mCubePositions.capacity(); i++) {
@@ -1026,12 +1088,14 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             case "Pong":
                 checkPuckCollision();
 
-                movePuck();//*/
+                movePuck();
 
-                if (playerScore > 1) {
+
+
+                if (player.getScore() > 1) {
                     gameMachine.Advance("PlayerWins");
                 }
-                else if (opponentScore > 3) {
+                else if (opponent.getScore() > 3) {
                     gameMachine.Advance("OpponentWins");
                 }
                 break;
@@ -1040,10 +1104,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                 // send the player data to the server
                 opponentLocation = opponent.getLocation();
                 // get the checkpuckcollision and move puck data fom the server
-                if (playerScore > 1) {
+                if (player.getScore() > 1) {
                     gameMachine.Advance("PlayerWins");
                 }
-                else if (opponentScore > 3) {
+                else if (opponent.getScore() > 1) {
                     gameMachine.Advance("OpponentWins");
                 }
                 break;
@@ -1125,10 +1189,12 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         }
 
+        //drawSkybox();
+
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+        multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
         GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
-        Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+        multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
 
         // TEST: render the entire font texture
         //glText.drawTexture( mWidth/2, mHeight/2, mMVPMatrix);            // Draw the Entire Texture
@@ -1138,22 +1204,38 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         //glText.drawC( "Test String :)", 0, 0, 0 );          // Draw Test String
         //glText.draw( "Diagonal 1", 0.0f, 0.0f, -9.0f);                // Draw Test String
         //glText.draw( "Column 1", 100, 100, 90);              // Draw Test String
+        float test1 = -(float)getmWidth()/2.0f;
+        float test2 = (float)(getmHeight()/2.0f)-20.0f;
+        glText.draw( "3D Extreme Pong " , 0.0f, /*0.0f*/(getmHeight()/6.0f), -450.0f, 0.0f, 0.0f, 0.0f);
+
+        glText.draw( "Player Score: " + player.getScore() , 0.0f, -(getmHeight()/7.5f), -450.0f, 0.0f, 0.0f, 0.0f);
+        glText.draw( "Opponent Score: " + opponent.getScore() , 0.0f, (getmHeight()/7.0f), -450.0f, 0.0f, 0.0f, 0.0f);
+
         if (gameMachine.CurrentState().GetName() == "ActiveMatch") {
             glText.draw( player.getUsername() + ": " + form.format(player.getScore())  , -120.0f, 50.0f, -450.0f, 0.0f, 0.0f, 0.0f);
             glText.draw( opponent.getUsername() + ": " + form.format(opponent.getScore())  , -120.0f, 60.0f, -450.0f, 0.0f, 0.0f, 0.0f);
             glText.draw( "puck.posY: " + form.format(thePuck.posY)  , -120.0f, 190.0f, -450.0f, 0.0f, 0.0f, 0.0f);
 
         }
-        glText.draw( "FPS: " + fpsCounter.fps, -120.0f, 150.0f, -450.0f, 0.0f, 0.0f, 0.0f);
-        //glText.draw( "Touched X:" + form.format(touchedX) + ", Y: " + form.format(touchedY) + ", Z: " + form.format(touchedZ), -120.0f, 140.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "OnDrawFrame Time: " + form.format(onDrawFrametime)  , -120.0f, 130.0f, -450.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Player TL: " + form.format(worldPlayerMinX) + ", " + form.format(worldPlayerMaxY) + ", BR: " + form.format(worldPlayerMaxX) + ", " + form.format(worldPlayerMinY), -120.0f, 120.0f, -450.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Opponent TL: " + form.format(worldOpponentMinX) + ", " + form.format(worldOpponentMaxY) + ", BR: " + form.format(worldOpponentMaxX) + ", " + form.format(worldOpponentMinY), -120.0f, 110.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+        if (gameMachine.CurrentState().GetName() == "PlayerWins") {
+            glText.draw( "Player Wins!"  , -0.0f, 0.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+        }
+        if (gameMachine.CurrentState().GetName() == "OpponentWins") {
+            glText.draw( "Computer  Wins!"  , -0.0f, 0.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+        }
+        if (debugFlag == true ) {
+            glText.draw( "FPS: " + fpsCounter.fps, -120.0f, 150.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+            //glText.draw( "Touched X:" + form.format(touchedX) + ", Y: " + form.format(touchedY) + ", Z: " + form.format(touchedZ), -120.0f, 140.0f, -400.0f, 0.0f, 0.0f, 0.0f);
+            glText.draw( "OnDrawFrame Time: " + form.format(onDrawFrametime)  , -120.0f, 130.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+            glText.draw( "Player TL: " + form.format(worldPlayerMinX) + ", " + form.format(worldPlayerMaxY) + ", BR: " + form.format(worldPlayerMaxX) + ", " + form.format(worldPlayerMinY), -120.0f, 120.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+            glText.draw( "Opponent TL: " + form.format(worldOpponentMinX) + ", " + form.format(worldOpponentMaxY) + ", BR: " + form.format(worldOpponentMaxX) + ", " + form.format(worldOpponentMinY), -120.0f, 110.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+            glText.draw( "World TouchX: " + form.format(touchedX) + ", TouchY: " + form.format(touchedY) , -120.0f, 160.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+            glText.draw( "Raw Touch Y: " + form.format(rawTouchY)  , -120.0f, 170.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+
+        }
         //glText.draw( "Puck TopLeft: " + form.format(worldPuckMinX) + ", " + form.format(worldPuckMaxY), -120.0f, 100.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( ", BottomR: " + form.format(worldPuckMaxX) + ", " + form.format(worldPuckMinY), -120.0f, 90.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "SCORE", -120.0f, 90.0f, -450.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Player: " + playerScore , -120.0f, 80.0f, -450.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Opponent: " + opponentScore , -120.0f, 70.0f, -450.0f, 0.0f, 0.0f, 0.0f);
+        //glText.draw( "SCORE", -120.0f, 90.0f, -450.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "fW: " + form.format(this.fW)  + ", fH: " + form.format(this.fH),  -120.0f, 180.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "BottomScrollBar TL: " + form.format(worldBottomScrollBarMinX) + ", " + form.format(worldBottomScrollBarMaxY), -120.0f, 210.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "BottomScrollBar BR: " + form.format(worldBottomScrollBarMaxX) + ", " + form.format(worldBottomScrollBarMinY), -120.0f, 200.0f, -400.0f, 0.0f, 0.0f, 0.0f);
@@ -1161,8 +1243,6 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         //glText.draw( "BottomScrollBarHeightGreenCalc: " + form.format(worldBottomScrollGreenHeight) , -120.0f, 60.0f, -400.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "BottomScrollBarHeightActual: " + form.format(worldBottomScrollBarMaxY - worldBottomScrollBarMinY) , -120.0f, 50.0f, -400.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "World TouchX: " + form.format(touchedX) + ", TouchY: " + form.format(touchedY) , -120.0f, 160.0f, -450.0f, 0.0f, 0.0f, 0.0f);
-        glText.draw( "Raw Touch Y: " + form.format(rawTouchY)  , -120.0f, 170.0f, -450.0f, 0.0f, 0.0f, 0.0f);
         //glText.draw( "Server Ping: "   , -120.0f, 40.0f, -400.0f, 0.0f, 0.0f, 0.0f);
 
         //glText.draw( "XOffset[0]: " + XOffset[0] , -120.0f, 100.0f, -20.0f, 0.0f, 0.0f, 0.0f);
@@ -1173,9 +1253,15 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         //glText.draw( "Mem Usage: " + fpsCounter.fps, -120.0f, 180.0f, -20.0f, 0.0f, 0.0f, 0.0f);//glText.draw("Puck -,+Y: " + form.format(boxMinZ) + ", " + form.format(boxMaxZ), 20, 205, textPaint);*/
         glText.end();                                   // End Text Rendering
 
+
+        Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
+                -20.0f, upX, upY, upZ);
+
         // Draw a point to indicate the light.
         GLES20.glUseProgram(mPointProgramHandle);
         drawLight();
+
+
 
         endTime = System.nanoTime();
         onDrawFrametime = (endTime - startTime)/1000000;
@@ -1185,44 +1271,53 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         /**
          * Draws a cube.
          */
-	private void drawCube() {
+	private void drawCube(int colour) {
 		// Pass in the position information
-        if (gameMachine.CurrentState().GetName() == "PlayerWins") { // TODO: move player wins condition to the state switch statement in draw()
+        mCubePositions.position(0);
+        GLES20.glVertexAttribPointer(mPositionHandle, mPositionDataSize,
+                GLES20.GL_FLOAT, false, 0, mCubePositions);
 
-            mCubePositions.position(0);
-            GLES20.glVertexAttribPointer(mPositionHandle, mPositionDataSize,
-                    GLES20.GL_FLOAT, false, 0, mCubePositions);
+        GLES20.glEnableVertexAttribArray(mPositionHandle);
 
-            GLES20.glEnableVertexAttribArray(mPositionHandle);
-
-            // Pass in the color information
+        // Pass in the color information
+        if (colour == 0) {
             mCubeColors.position(0);
             GLES20.glVertexAttribPointer(mColorHandle, mColorDataSize,
                     GLES20.GL_FLOAT, false, 0, mCubeColors);
 
             GLES20.glEnableVertexAttribArray(mColorHandle);
+        }
+        else if (colour == 1) {
+            mOpponentCubeColors.position(0);
+            GLES20.glVertexAttribPointer(mColorHandle, mColorDataSize,
+                    GLES20.GL_FLOAT, false, 0, mOpponentCubeColors);
 
-            // Pass in the normal information
-            mCubeNormals.position(0);
-            GLES20.glVertexAttribPointer(mNormalHandle, mNormalDataSize,
-                    GLES20.GL_FLOAT, false, 0, mCubeNormals);
+            GLES20.glEnableVertexAttribArray(mColorHandle);
+        }
 
-            GLES20.glEnableVertexAttribArray(mNormalHandle);
+        // Pass in the normal information
+        mCubeNormals.position(0);
+        GLES20.glVertexAttribPointer(mNormalHandle, mNormalDataSize,
+                GLES20.GL_FLOAT, false, 0, mCubeNormals);
 
-            // Pass in the texture coordinate information
-            mCubeTextureCoordinates.position(0);
-            GLES20.glVertexAttribPointer(mTextureCoordinateHandle,
-                    mTextureCoordinateDataSize, GLES20.GL_FLOAT, false, 0,
-                    mCubeTextureCoordinates);
+        GLES20.glEnableVertexAttribArray(mNormalHandle);
 
-            GLES20.glEnableVertexAttribArray(mTextureCoordinateHandle);
+        // Pass in the texture coordinate information
+        mCubeTextureCoordinates.position(0);
+        GLES20.glVertexAttribPointer(mTextureCoordinateHandle,
+                mTextureCoordinateDataSize, GLES20.GL_FLOAT, false, 0,
+                mCubeTextureCoordinates);
 
+        GLES20.glEnableVertexAttribArray(mTextureCoordinateHandle);
+
+
+        if ((gameMachine.CurrentState().GetName() == "PlayerWins") || (gameMachine.CurrentState().GetName() == "OpponentWins") ) { // TODO: move player wins condition to the state switch statement in draw()
             // This multiplies the view matrix by the model matrix, and stores the
             // result in the MVP matrix
             // (which currently contains model * view).
 
             // testpoint1
-            Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+            multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
 
             // Pass in the modelview matrix.
             GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
@@ -1230,76 +1325,78 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             // This multiplies the modelview matrix by the projection matrix, and
             // stores the result in the MVP matrix
             // (which now contains model * view * projection).
-            Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+            multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
 
-            for (int i = 0; i < 36; i++) {
-                if ( (i > 0) && ((i % 3) == 0) ) { // Algorithm to explode the paddles vertices
-                    //TRANSLATION
-                    float[] transMatrix = new float[16];
-                    float[] scratch = new float[16];
-
-                    XOffset[(i/3)-1] += XOffsetIncr[(i/3)-1];
-                    YOffset[(i/3)-1] += YOffsetIncr[(i/3)-1];
-
-                    Matrix.setIdentityM(mRotationMatrix, 0);
-
-                    Matrix.translateM(mRotationMatrix, 0, XOffset[(i / 3) - 1], YOffset[(i / 3) - 1], 0);
-
-                    // Use the following code to generate constant rotation.
-                    // Leave this code out when using TouchEvents.
-                    long time = SystemClock.uptimeMillis() % 4000L;
-                    mAngle = 0.360f * ((int) time);
-
-                    Matrix.rotateM(mRotationMatrix, 0, mAngle, 0, 0, 1.0f);
-
-                    Matrix.multiplyMM(scratch, 0, mMVPMatrix, 0, mRotationMatrix, 0);
-
-                    // Pass in the combined matrix.
-                    GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, scratch, 0);
-
-                    // Pass in the light position in eye space.
+            // draw the winning paddle normally
+            if (gameMachine.CurrentState().GetName() == "PlayerWins") {
+                if (colour == 0) {
+                    multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+                    GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
+                    multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+                    GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, mMVPMatrix, 0);
                     GLES20.glUniform3f(mLightPosHandle, mLightPosInEyeSpace[0],
                             mLightPosInEyeSpace[1], mLightPosInEyeSpace[2]);
+                    getOpenGLActiveAttribs();
+                    GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 36);
+                }
+            }
+            else if (gameMachine.CurrentState().GetName() == "OpponentWins") {
+                if (colour == 1) {
+                    multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+                    GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
+                    multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+                    GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, mMVPMatrix, 0);
+                    GLES20.glUniform3f(mLightPosHandle, mLightPosInEyeSpace[0],
+                            mLightPosInEyeSpace[1], mLightPosInEyeSpace[2]);
+                    getOpenGLActiveAttribs();
+                    GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 36);
+                }
+            }
 
-                    // Draw one translated triangle at a time.
-                    GLES20.glDrawArrays(GLES20.GL_TRIANGLES, i, 3);
+            if ((gameMachine.CurrentState().GetName() == "PlayerWins") && (colour == 1)
+                  || (gameMachine.CurrentState().GetName() == "OpponentWins") && (colour == 0)) {
+                for (int i = 0; i < 36; i++) {
+                    if ( (i > 0) && ((i % 3) == 0) ) { // Algorithm to explode the paddles vertices
+                        //TRANSLATION
+                        float[] transMatrix = new float[16];
+                        float[] scratch = new float[16];
+
+                        XOffset[(i/3)-1] += XOffsetIncr[(i/3)-1];
+                        YOffset[(i/3)-1] += YOffsetIncr[(i/3)-1];
+
+                        Matrix.setIdentityM(mRotationMatrix, 0);
+
+                        Matrix.translateM(mRotationMatrix, 0, XOffset[(i / 3) - 1], YOffset[(i / 3) - 1], 0);
+
+                        // Use the following code to generate constant rotation.
+                        // Leave this code out when using TouchEvents.
+                        long time = SystemClock.uptimeMillis() % 4000L;
+                        mAngle = 0.360f * ((int) time);
+
+                        rotateM(mRotationMatrix, 0, mAngle, 0, 0, 1.0f);
+
+                        multiplyMM(scratch, 0, mMVPMatrix, 0, mRotationMatrix, 0);
+
+                        // Pass in the combined matrix.
+                        GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, scratch, 0);
+
+                        // Pass in the light position in eye space.
+                        GLES20.glUniform3f(mLightPosHandle, mLightPosInEyeSpace[0],
+                                mLightPosInEyeSpace[1], mLightPosInEyeSpace[2]);
+
+                        // Draw one translated triangle at a time.
+                        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, i, 3);
+                    }
                 }
             }
         }
         else {
             // draw the player or opponent normally
-            mCubePositions.position(0);
-            GLES20.glVertexAttribPointer(mPositionHandle, mPositionDataSize,
-                    GLES20.GL_FLOAT, false, 0, mCubePositions);
-
-            GLES20.glEnableVertexAttribArray(mPositionHandle);
-
-            // Pass in the color information
-            mCubeColors.position(0);
-            GLES20.glVertexAttribPointer(mColorHandle, mColorDataSize,
-                    GLES20.GL_FLOAT, false, 0, mCubeColors);
-
-            GLES20.glEnableVertexAttribArray(mColorHandle);
-
-            // Pass in the normal information
-            mCubeNormals.position(0);
-            GLES20.glVertexAttribPointer(mNormalHandle, mNormalDataSize,
-                    GLES20.GL_FLOAT, false, 0, mCubeNormals);
-
-            GLES20.glEnableVertexAttribArray(mNormalHandle);
-
-            // Pass in the texture coordinate information
-            mCubeTextureCoordinates.position(0);
-            GLES20.glVertexAttribPointer(mTextureCoordinateHandle,
-                    mTextureCoordinateDataSize, GLES20.GL_FLOAT, false, 0,
-                    mCubeTextureCoordinates);
-
-            GLES20.glEnableVertexAttribArray(mTextureCoordinateHandle);
 
             // This multiplies the view matrix by the model matrix, and stores the
             // result in the MVP matrix
             // (which currently contains model * view).
-            Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+            multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
 
             // Pass in the modelview matrix.
             GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
@@ -1307,7 +1404,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             // This multiplies the modelview matrix by the projection matrix, and
             // stores the result in the MVP matrix
             // (which now contains model * view * projection).
-            Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+            multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
 
             // Pass in the combined matrix.
             GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, mMVPMatrix, 0);
@@ -1355,7 +1452,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		// This multiplies the view matrix by the model matrix, and stores the
 		// result in the MVP matrix
 		// (which currently contains model * view).
-		Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+		multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
 
 		// Pass in the modelview matrix.
 		GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
@@ -1363,7 +1460,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		// This multiplies the modelview matrix by the projection matrix, and
 		// stores the result in the MVP matrix
 		// (which now contains model * view * projection).
-		Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+		multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
 
 		// Pass in the combined matrix.
 		GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, mMVPMatrix, 0);
@@ -1409,7 +1506,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         // This multiplies the view matrix by the model matrix, and stores the
         // result in the MVP matrix
         // (which currently contains model * view).
-        Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+        multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
 
         // Pass in the modelview matrix.
         GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
@@ -1417,7 +1514,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         // This multiplies the modelview matrix by the projection matrix, and
         // stores the result in the MVP matrix
         // (which now contains model * view * projection).
-        Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+        multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
 
         // Pass in the combined matrix.
         GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, mMVPMatrix, 0);
@@ -1448,8 +1545,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		GLES20.glDisableVertexAttribArray(pointPositionHandle);
 
 		// Pass in the transformation matrix.
-		Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mLightModelMatrix, 0);
-		Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+		multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mLightModelMatrix, 0);
+		multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
 		GLES20.glUniformMatrix4fv(pointMVPMatrixHandle, 1, false, mMVPMatrix, 0);
 
 		// Draw the point.
@@ -1629,10 +1726,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         Matrix.setIdentityM(mTempModelMatrix, 0);
         //Matrix.translateM(mTempModelMatrix, 0, 0.0f, 0.0f, -20.0f);
 
-        Matrix.multiplyMM(mTempMVPMatrix, 0, mTempViewMatrix/*mViewMatrix*/, 0, mTempModelMatrix, 0);
+        multiplyMM(mTempMVPMatrix, 0, mTempViewMatrix/*mViewMatrix*/, 0, mTempModelMatrix, 0);
         //Matrix.multiplyMM(mTempMVPMatrix, 0, mTempProjectionMatrix, 0, mTempMVPMatrix, 0);
 
-        Matrix.multiplyMM(
+        multiplyMM(
             transformMatrix, 0,
                 mTempProjectionMatrix/*getCurrentProjection(mRenderer.unused)*/, 0,
                 mTempMVPMatrix/*getCurrentModelView(gl)*/, 0);
@@ -1716,6 +1813,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
             Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY,
                     -20.0f, upX, upY, upZ);
+            /*xRotation = 90.0f/pct;
+            rotateM(mViewMatrix, 0, -xRotation, 0f, 1f, -20f);
+            //yRotation+= 0.1f;
+            multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);*/
 
             // Update the view
             //if (eyeZ >= -1.5)
@@ -1815,7 +1916,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         }
 
         if (worldPuckMinY >= 1.0) { // reset game
-            playerScore++;
+            player.setScore(player.getScore()+1);
             //playerWinAnim();
             thePuck.puckYDirection = -1;
             thePuck.posX = 0;
@@ -1823,7 +1924,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         }
         if (worldPuckMaxY <= -1.0) {
-            opponentScore++;
+            opponent.setScore(opponent.getScore()+1);
             thePuck.puckYDirection = 1;
             thePuck.posX = 0;
             thePuck.posY = 0;
@@ -1831,7 +1932,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         }
         if (thePuck.puckYDirection == -1) {
 
-            if (worldPuckMinY <= worldPlayerMaxY) {
+            if ( (worldPuckMinY <= worldPlayerMaxY) && (worldPuckMaxY >= worldPlayerMinY) ) {
                 if ( (worldPuckMaxX >= worldPlayerMinX) && (worldPuckMinX <= worldPlayerMaxX) ) { //(   <= max) ) {
                     thePuck.puckYDirection = 1;
                     //if (deltaPuckX > deltaBoxX)
@@ -1842,7 +1943,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             }
         }
         else if (thePuck.puckYDirection == 1) {
-            if (worldPuckMaxY >= worldOpponentMinY) {
+            if ( (worldPuckMaxY >= worldOpponentMinY) && (worldPuckMinY <= worldOpponentMaxY) ) {
                 if ((worldPuckMaxX >= worldOpponentMinX) && (worldPuckMinX <= worldOpponentMaxX)) {//(   <= max) ) {
                     thePuck.puckYDirection = -1;
                     thePuck.puckSpeed = 0.10f+((deltaOpponentX - deltaPuckX) / 3.0f);//worldPlayerMaxX - worldPuckMaxX);
@@ -1869,6 +1970,17 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         else if (thePuck.puckXDirection == -1) {
             thePuck.posX -= thePuck.puckSpeed/10.0f;
         }
+    }
+
+    public void moveComputer() {
+        if (thePuck.posX > opponentLocation[0]) {
+            opponentLocation[0]++;
+        }
+        else if (thePuck.posX < opponentLocation[0]) {
+            opponentLocation[0]--;
+
+        }
+
     }
 
     void getOpenGLActiveAttribs() {
@@ -1928,7 +2040,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         // This multiplies the view matrix by the model matrix, and stores the
         // result in the MVP matrix
         // (which currently contains model * view).
-        Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+        multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
 
         // Pass in the modelview matrix.
         GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
@@ -1936,7 +2048,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         // This multiplies the modelview matrix by the projection matrix, and
         // stores the result in the MVP matrix
         // (which now contains model * view * projection).
-        Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+        multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
 
         // Pass in the combined matrix.
         GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, mMVPMatrix, 0);
@@ -1951,7 +2063,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     }
 
-    public int getOpponentScore() {
+    /*public int getOpponentScore() {
         return opponentScore;
     }
 
@@ -1965,7 +2077,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     public void setPlayerScore(int playerScore) {
         this.playerScore = playerScore;
-    }
+    }*/
 
     public void youWin() {
         // Scroll through a bunch of game stats with a compliment beside them at speed
@@ -1986,5 +2098,74 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     public void setPuck(float posX, float posY) {
         this.thePuck.posX = posX;
         this.thePuck.posY = posY;
+    }
+
+    private void drawSkybox() {
+
+        final float angleInRadians = (float) (45 * Math.PI / 180.0);
+        final float a = (float) (1.0 / Math.tan(angleInRadians / 2.0));
+
+        float[] m = new float[] {
+                (a / ((float)mWidth/(float) mHeight)),
+        0f,
+        0f,
+        0f,
+        0f,
+        a,
+        0f,
+        0f,
+        0f,
+        0f,
+        -((10f + 1f) / (10f - 1f)),
+        -1f,
+                0f,
+        0f,
+        -((2f * 10f * 1f) / (10f - 1f)),
+        0f
+        };
+
+        //Matrix.perspectiveM();
+        //Matrix.perpectiveM(mProjectionMatrix, 0, 45.0f, (float) mWidth / (float) mHeight, 1.0f, 10.0f);
+        //Matrix.setIdentityM(mViewMatrix, 0);
+        //Matrix.multiplyMM(mMVPMatrix, 0, m, 0, mMVPMatrix, 0);
+        Matrix.setIdentityM(mRotationMatrix, 0);
+        xRotation = bottomScrollBar.getSelectedPct();
+
+        rotateM(mRotationMatrix, 0, xRotation, 0f, 1f, 0f);
+        //
+        // xRotation += 0.1f;
+        //if (xRotation > 360.0f)
+        //    xRotation = 360.0f;*/
+        multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mRotationMatrix, 0);
+        //multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
+
+        Matrix.setIdentityM(mModelMatrix, 0);
+        //Matrix.translateM(mModelMatrix, 0, 0.0f,0.0f, -20.0f);
+        //multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+
+        // Pass in the modelview matrix.
+        GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
+
+        // This multiplies the modelview matrix by the projection matrix, and
+        // stores the result in the MVP matrix
+        // (which now contains model * view * projection).
+        /*multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mMVPMatrix, 0);
+
+        // Pass in the combined matrix.
+        GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, mMVPMatrix, 0);
+
+        // Pass in the light position in eye space.
+        GLES20.glUniform3f(mLightPosHandle, mLightPosInEyeSpace[0],
+                mLightPosInEyeSpace[1], mLightPosInEyeSpace[2]);*/
+
+
+        skyboxProgram.useProgram();
+        skyboxProgram.setUniforms(mMVPMatrix, skyboxTexture);
+        skybox.bindData(skyboxProgram);
+        skybox.draw();
+        //Matrix.setIdentityM(mMVPMatrix, 0);
+
+        //multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
+
     }
 }

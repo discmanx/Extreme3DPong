@@ -9,18 +9,27 @@ package com.weakentroll.extreme3dpong;
  *
  **********************************************/
 
+import android.Manifest;
 import android.accounts.AccountManager;
 import android.accounts.AccountManagerCallback;
 import android.accounts.AccountManagerFuture;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.support.v7.app.ActionBar;
-import android.support.v7.app.AppCompatActivity;
+//import android.support.v7.app.ActionBar;
+//import android.support.v7.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -47,7 +56,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -55,6 +67,8 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.Semaphore;
 
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -85,10 +99,31 @@ public class MainActivity extends AppCompatActivity
     private Player opponent;
 	private final static Semaphore available = new Semaphore(1, true);
 
-	private CustomListAdapter customListAdapter;
+	// Media
+    private MediaPlayer mediaplayer = null;
+    private MediaRecorder mediarecorder = null;
+    // Requesting permission to RECORD_AUDIO
+    private boolean permissionToRecordAccepted = false;
+    private String [] permissions = {Manifest.permission.RECORD_AUDIO};
+    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
+    private static String mediafileName = null;
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode){
+            case REQUEST_RECORD_AUDIO_PERMISSION:
+                permissionToRecordAccepted  = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+                break;
+        }
+        if (!permissionToRecordAccepted ) finish();
+
+    }
+
+    private CustomListAdapter customListAdapter;
 	//static ListView multiPlayerListView = null;// = (ListView)findViewById(R.id.multiPlayerList);
 	static ArrayList<MultiPlayer> multiPlayerList = new ArrayList<MultiPlayer>();
 	boolean activeMatch = false;
+	boolean debugFlag = false;
 
 	// View variables
 	RelativeLayout parentRelativeLayout;
@@ -99,6 +134,8 @@ public class MainActivity extends AppCompatActivity
 	Button saveGameButton;// = (Button)findViewById(R.id.saveGame);
 	Button loadGameButton;// = (Button)findViewById(R.id.loadGame);
 	Button multiPlayerButton;// = (Button)findViewById(R.id.multiPlayer);
+	Button debugButton;
+	Button sendPlayerMsgButton;
 	ListView multiPlayerListView;// = (ListView)findViewById(R.id.multiPlayerListView);
 	LinearLayout multiPlayer_layout;
 	EditText multiplayer_username_input;
@@ -131,8 +168,6 @@ public class MainActivity extends AppCompatActivity
 
 	LooperThread mLooperThread;
 
-
-
 	private class LooperThread extends Thread {
 
 		public Handler mHandler;
@@ -148,7 +183,7 @@ public class MainActivity extends AppCompatActivity
 			Looper.prepare();
 			mHandler = new Handler() {
 				public void handleMessage(Message msg) {
-					if(msg.what == 0) {
+					if(msg.what == 0) { // this is where we send msgs to the server
 						doLongRunningOperation(msg);
 					}
 					if (msg.what == 1) {
@@ -158,7 +193,6 @@ public class MainActivity extends AppCompatActivity
 					if (msg.what == 2) {
 						/* deprecated
 						if (nc.connectWithServer() == false)
-
 						{
 							Message msg1 = new Message();
 							msg1.what = 2;
@@ -169,10 +203,10 @@ public class MainActivity extends AppCompatActivity
 						}
 						*/
 					}
-					if(msg.what == 6) {
-						// CASE 1 - not used
-						//
-						//
+					if(msg.what == 3) { // this is where we send msgs to the server
+						nc.disConnectWithServer();
+					}
+					/*if(msg.what == 6) { // this is where we first receive msg from the server - it is checked repeatedly if theres one waiting
 						System.out.println(" msg.what == 6");
 						try {
 							available.acquire();
@@ -182,10 +216,7 @@ public class MainActivity extends AppCompatActivity
 							available.release();
 							System.out.println("mainactivity dolongrunningoperation() available.release()");
 
-
-							JSONObject serverData;
-
-							serverData = new JSONObject(msg.obj.toString());
+							JSONObject serverData = new JSONObject(msg.obj.toString());
 
 							switch (serverData.getString("msgType")) {
 								case "multiPlayerList":
@@ -195,8 +226,8 @@ public class MainActivity extends AppCompatActivity
 									player = new Player(json_player.getString("username"), null, json_player.getInt("id"), json_player.getInt("score"), 0.0f, -5.0f, -20.0f, 0);
 									/*player.setUsername(json_player.getString("username")); NOT CALLED!!!!
 									player.setPlayerid(json_player.getInt("id"));
-									player.setScore(json_player.getInt("score"));*/
-									JSONArray multiPlayers = serverData.getJSONArray("multiPlayers");
+									player.setScore(json_player.getInt("score")); /*/
+									/*JSONArray multiPlayers = serverData.getJSONArray("multiPlayers");
 
 									multiPlayerList.clear();
 
@@ -206,7 +237,7 @@ public class MainActivity extends AppCompatActivity
 										MultiPlayer mp = new MultiPlayer(json_data.getString("username"), json_data.getInt("id"), json_data.getInt("score"));
 										multiPlayerList.add(mp);
 									}
-									//JSONArray player = /*(JSONObject)*/ multiPlayers.getJSONArray("testList");//   getString (0);
+									//JSONArray player = /*(JSONObject)*/ /*multiPlayers.getJSONArray("testList");//   getString (0);
 
 									String name = "test";//player.getString("username");
 									//int score = player.getInt("score");
@@ -222,6 +253,13 @@ public class MainActivity extends AppCompatActivity
 									msg2.what = 3;
 									msg2.setTarget(mHandler);
 									msg2.sendToTarget();
+									//displayMessage("Invalid Password.", "Ok", "main");
+									break;
+								case "invalidUsername":
+									Message msg9 = new Message();
+									msg9.what = 9;
+									msg9.setTarget(mHandler);
+									msg9.sendToTarget();
 									//displayMessage("Invalid Password.", "Ok", "main");
 									break;
 								case "invalidUsernameRegisterMultiAccount":
@@ -242,7 +280,7 @@ public class MainActivity extends AppCompatActivity
 										if (serverData.getInt("toPlayerId") == multiPlayerList.get(i).multiId) {
 
 										}
-								}*/
+								}*/ /*
 									break;
 								case "challengeMultiplayerAccepted":
 									Message msg5 = new Message();
@@ -253,39 +291,32 @@ public class MainActivity extends AppCompatActivity
 								default:
 									break;
 							}
-
 						//available.release();
 					} catch (JSONException e) {
 						System.out.println("mainactivity dolongrunningoperation() catch jsonbexcepetion called");
-
 						e.printStackTrace();
 					} catch (InterruptedException e) {
 						System.out.println("mainactivity dolongrunningoperation() catch interruptedexcepetion called");
-
 						e.printStackTrace();
 					}
-					}
+					}*/
 				}
 			};
-
 			Looper.loop();
-			/*while (true) {
-				if (nc.isServerUp() == true) {
-					String r = nc.receiveDataFromServer();
-					if (r.length() > 0) {
-						System.out.print(r);
-					}
-				}
-			}*/
 		}
 	}
-
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) 
 	{
 		super.onCreate(savedInstanceState);
         // hideSystemUI();
+		// Record to the external cache directory for visibility
+		mediafileName = getExternalCacheDir().getAbsolutePath();
+		mediafileName += "/audiorecordtest.3gp";
+		ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
+
+
 
 		mLooperThread = new LooperThread();
 		mLooperThread.start();
@@ -297,10 +328,8 @@ public class MainActivity extends AppCompatActivity
              */
 			@Override
 			public void handleMessage(Message inputMessage) {
-
 				// Gets the image task from the incoming Message object.
 				//PhotoTask photoTask = (PhotoTask) inputMessage.obj;
-
 				switch (inputMessage.what) {
 					case 1: //ArrayAdapter<MultiPlayer> adapter = new ArrayAdapter<MultiPlayer>(MainActivity.this,
 							//android.R.layout.simple_list_item_1, multiPlayerList);
@@ -322,18 +351,15 @@ public class MainActivity extends AppCompatActivity
 
 								if (viewId == R.id.challengeMultiplayer) {
 									System.out.println( "Button 1 clicked");
-
 									// get current item to be displayed
 									MainActivity.MultiPlayer currentItem = (MainActivity.MultiPlayer) customListAdapter.getItem(position);
 									if (mLooperThread.mHandler != null) {
 										Message msg = mLooperThread.mHandler.obtainMessage(0);
 
-										String userInput;
 										String fromUsername = player.getUsername();
 										String toUsername = currentItem.multiUsername;
 										int fromUserId = player.getPlayerid();
 										int toUserId = currentItem.multiId;
-
 
 										JSONObject gameData = new JSONObject();
 
@@ -343,45 +369,44 @@ public class MainActivity extends AppCompatActivity
 											gameData.put("toPlayername", toUsername);
 											gameData.put("fromPlayerId", fromUserId);
 											gameData.put("toPlayerId", toUserId);
-
-
-											// get objkect.usernamegameData.put("username", username);
 										} catch (JSONException ex) {
 											ex.printStackTrace();
 										}
-
 										msg.obj = gameData;
 										mLooperThread.mHandler.sendMessage(msg);
 									}
 								} else {
 									System.out.println( "Listview clicked");
 								}
-
 							}
 						});
-
 						for (int i = 0; i < dyn_layout.getChildCount(); i++) {
 							View v = dyn_layout.getChildAt(i);
 							v.setVisibility(View.GONE);
 						}
-
 						multiPlayerList_layout.setVisibility(View.VISIBLE);
 						backMenuButton.setVisibility(View.VISIBLE);
 						multiPlayerListView.setVisibility(View.VISIBLE);
 						//mGLSurfaceView.getmRenderer().gameMachine.Advance("MultiPlayerMenu");
 						break;
 					case 2: displayMessage("Error connecting to server.", "Ok", "current");
+
 						break;
 					case 3: displayMessage("Invalid Password.", "Ok", "current");
+						Message msgA = new Message();
+						msgA.what = 3;
+						mLooperThread.mHandler.sendMessage(msgA);
 						break;
 					case 4: displayMessage("Username already created. Please choose another.", "Ok" , "current");
+						msgA = new Message();
+						msgA.what = 3;
+						mLooperThread.mHandler.sendMessage(msgA);
+
 						break;
 					case 5: displayMessage("Please confirm password.", "Ok", "current");
 						break;
 					case 6: System.out.println(" msg.what == 6");
-					// CASE 2
-						//
-						//
+
 						try {
 							available.acquire();
 							System.out.println("mainactivity dolongrunningoperation() available.acquire()");
@@ -394,6 +419,7 @@ public class MainActivity extends AppCompatActivity
 							JSONObject serverData;
 
 							serverData = new JSONObject(inputMessage.obj.toString());
+							Message msg;
 
 							switch (serverData.getString("msgType")) {
 								case "multiPlayerList":
@@ -402,9 +428,6 @@ public class MainActivity extends AppCompatActivity
 									JSONObject json_player = serverData.getJSONObject("player");
 									player = new Player(json_player.getString("username"), null, json_player.getInt("id"), json_player.getInt("score"), 0.0f, 0.0f, 0.0f, 0);
 									mGLSurfaceView.getmRenderer().setPlayer(player);
-								    /*player.setUsername(json_player.getString("username"));
-									player.setPlayerid(json_player.getInt("id"));
-									player.setScore(json_player.getInt("score"));*/
 									JSONArray multiPlayers = serverData.getJSONArray("multiPlayers");
 
 									multiPlayerList.clear();
@@ -424,39 +447,46 @@ public class MainActivity extends AppCompatActivity
 
 									mGLSurfaceView.getmRenderer().gameMachine.Advance("MultiPlayerListMenu");
 
-									Message msg1 = new Message();
-									msg1.what = 1;
-									msg1.setTarget(mHandler);
-									msg1.sendToTarget();
+									msg = new Message();
+									msg.what = 1;
+									msg.setTarget(mHandler);
+									msg.sendToTarget();
 									break;
 								case "invalidPassword":
-									Message msg2 = new Message();
-									msg2.what = 3;
-									msg2.setTarget(mHandler);
-									msg2.sendToTarget();
+									msg = new Message();
+									msg.what = 3;
+									msg.setTarget(mHandler);
+									msg.sendToTarget();
+									//displayMessage("Invalid Password.", "Ok", "main");
+									break;
+								case "invalidUsername":
+									msg = new Message();
+									msg.what = 11;
+									msg.setTarget(mHandler);
+									msg.sendToTarget();
 									//displayMessage("Invalid Password.", "Ok", "main");
 									break;
 								case "invalidUsernameRegisterMultiAccount":
-									Message msg3 = new Message();
-									msg3.what = 4;
-									msg3.setTarget(mHandler);
-									msg3.sendToTarget();
+									msg = new Message();
+									msg.what = 4;
+									msg.setTarget(mHandler);
+									msg.sendToTarget();
 									//displayMessage("Invalid Password.", "Ok", "main");
 									break;
 								case "challengeMultiplayer":
-									Message msg4 = new Message();
-									msg4.what = 8;
-									msg4.obj = new JSONObject(inputMessage.obj.toString());
-									msg4.setTarget(mHandler);
-									msg4.sendToTarget();
+									msg = new Message();
+									msg.what = 8;
+									msg.obj = new JSONObject(inputMessage.obj.toString());
+									msg.setTarget(mHandler);
+									msg.sendToTarget();
 									break;
                                 case "startingMatchCountdown":
-                                    Message msg5 = new Message();
-                                    msg5.what = 9;
+                                    msg = new Message();
+                                    msg.what = 9;
 									JSONObject newServerData = new JSONObject(inputMessage.obj.toString());
-                                    msg5.obj = newServerData;
-									msg5.setTarget(mHandler);
-									msg5.sendToTarget();
+                                    msg.obj = newServerData;
+									msg.setTarget(mHandler);
+									msg.sendToTarget();
                                     break;
 								case "launchingMatch":
 									player.setSessionId(serverData.getInt("sessionId"));
@@ -466,10 +496,10 @@ public class MainActivity extends AppCompatActivity
 
 									activeMatch = true;
 									mGLSurfaceView.getmRenderer().gameMachine.Advance("ActiveMatch");
-									Message msg7 = new Message();
-									msg7.what = 10;
-									msg7.setTarget(mHandler);
-									msg7.sendToTarget();
+									msg = new Message();
+									msg.what = 10;
+									msg.setTarget(mHandler);
+									msg.sendToTarget();
 									break;
 								case "activeMatchSendData":
 									float locationX = (float)serverData.getDouble("locationX");
@@ -492,34 +522,35 @@ public class MainActivity extends AppCompatActivity
 									activeMatchSendData.put( "playerId", player.getPlayerid());
 									activeMatchSendData.put( "sessionId", player.getSessionId());
 
-
-
-									Message msg6 = new Message();
-									msg6.what = 0;
-									msg6.obj = activeMatchSendData;
-									mLooperThread.mHandler.sendMessage(msg6);
-
-									//serverData = new JSONObject(inputMessage.obj.toString());
+									msg = new Message();
+									msg.what = 0;
+									msg.obj = activeMatchSendData;
+									mLooperThread.mHandler.sendMessage(msg);
+									break;
+                                case "updateScore":
+                                    msg = new Message();
+                                    mGLSurfaceView.getmRenderer().player.setScore(serverData.getInt("playerScore"));
+                                    mGLSurfaceView.getmRenderer().opponent.setScore(serverData.getInt("opponentScore"));
+                                    break;
+								case "playmedia": // need to review
+									//msg.
+									//serverData.getJSONObject()
 									break;
 								default:
 									break;
 							}
-
 							//available.release();
 						} catch (JSONException e) {
 							System.out.println("mainactivity dolongrunningoperation() catch jsonbexcepetion called");
-
 							e.printStackTrace();
 						} catch (InterruptedException e) {
 							System.out.println("mainactivity dolongrunningoperation() catch interruptedexcepetion called");
-
 							e.printStackTrace();
 						}
 						break;
 					case 7: parentRelativeLayout.removeView((ImageView)findViewById(R.id.weakentroll_splashview));
 						break;
 					case 8:
-
 						try {
 							final JSONObject serverData = new JSONObject(inputMessage.obj.toString());
 							display_challenge_textview.setText("You are being challenged by " + serverData.getString("fromPlayername"));
@@ -528,46 +559,38 @@ public class MainActivity extends AppCompatActivity
 							challenge_yes_button.setOnClickListener(new View.OnClickListener() {
 								public void onClick(View v) {
 									if (mLooperThread.mHandler != null) {
-
 										try {
 											serverData.remove("msgType");
 											serverData.put("msgType", "challengeMultiPlayerAccepted");
 
-											Message msg5 = new Message();
-											msg5.what = 0;
-											msg5.obj = serverData;
-											mLooperThread.mHandler.sendMessage(msg5);
+											Message msg = new Message();
+											msg.what = 0;
+											msg.obj = serverData;
+											mLooperThread.mHandler.sendMessage(msg);
 
                                             display_challenge_layout.setVisibility(View.GONE);
-
-
                                         } catch (JSONException e) {
 											e.printStackTrace();
 										}
-
 									}
 								}
 							});
                             challenge_no_button.setOnClickListener(new View.OnClickListener() {
                                 public void onClick(View v) {
                                     if (mLooperThread.mHandler != null) {
-
                                         try {
                                             serverData.remove("msgType");
                                             serverData.put("msgType", "multiPlayerChallengeDeclined");
 
-                                            Message msg5 = new Message();
-                                            msg5.what = 0;
-                                            msg5.obj = serverData;
-                                            mLooperThread.mHandler.sendMessage(msg5);
+                                            Message msg = new Message();
+                                            msg.what = 0;
+                                            msg.obj = serverData;
+                                            mLooperThread.mHandler.sendMessage(msg);
 
                                             display_challenge_layout.setVisibility(View.GONE);
-
-
                                         } catch (JSONException e) {
                                             e.printStackTrace();
                                         }
-
                                     }
                                 }
                             });
@@ -590,9 +613,6 @@ public class MainActivity extends AppCompatActivity
 						} catch (JSONException e) {
 							e.printStackTrace();
 						}
-
-
-
 						break;
 					case 10:
 						multiPlayerList_layout.setVisibility(View.GONE);
@@ -610,6 +630,11 @@ public class MainActivity extends AppCompatActivity
 						}
 						mHandler.sendEmptyMessageDelayed(COUNTDOWN, 1000);
 						break;*/
+					case 11: displayMessage("Invalid Username.", "Ok", "current");
+						Message msg = new Message();
+						msg.what = 3;
+						mLooperThread.mHandler.sendMessage(msg);
+						break;
 					default:
 						// Otherwise, calls the super method
 						super.handleMessage(inputMessage);
@@ -617,7 +642,6 @@ public class MainActivity extends AppCompatActivity
 				}
 			}
 		};
-
 		/* TODO: enable bluetooth
         ArrayAdapter mArrayAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, 0);
 
@@ -640,10 +664,6 @@ public class MainActivity extends AppCompatActivity
                 mArrayAdapter.add(device.getName() + "\n" + device.getAddress());
             }
         }*/
-
-        /////mGLSurfaceView = new MyGLSurfaceView(this); // dont need this in main activity since the layout is now using multiple items
-
-        /////setContentView(mGLSurfaceView);
 
 		// Check if the system supports OpenGL ES 2.0.
 		//final ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
@@ -674,6 +694,10 @@ public class MainActivity extends AppCompatActivity
 		saveGameButton = (Button)findViewById(R.id.saveGame);
 		loadGameButton = (Button)findViewById(R.id.loadGame);
 		multiPlayerButton = (Button)findViewById(R.id.multiPlayer);
+		debugButton = (Button)findViewById(R.id.debug);
+		sendPlayerMsgButton = (Button)findViewById(R.id.sendPlayerMsg);
+
+
 		multiPlayerListView = (ListView)findViewById(R.id.multiPlayerListView);
 		multiPlayer_layout = (LinearLayout)findViewById(R.id.multiPlayer_layout);
 		multiplayer_username_input = (EditText)findViewById(R.id.multiplayer_username_input);
@@ -717,43 +741,6 @@ public class MainActivity extends AppCompatActivity
 				0, -5.0f, 5.0f, -20.0f, 0);
 		opponent = new Player(null, null, 0,
                 0, -5.0f, 5.0f, -20.0f, 0);
-        ////final LinearLayout linearView = (LinearLayout) findViewById(R.id.my_linear_layout);
-		//linearView.setOrientation(LinearLayout.);
-		//linearView.setGravity(Gravity.CENTER);
-/*
-		final android.content.res.TypedArray styledAttributes = /*getContext().//  getTheme().obtainStyledAttributes(
-				new int[] { android.R.attr.actionBarSize });
-		int mActionBarSize = (int) styledAttributes.getDimension(0, 0);
-		// this is for height of action toolbar
-
-		// get height of quit button layout
-
-		styledAttributes.recycle();
-
-		final Button tv = (Button)findViewById(R.id.CloseProgram);
-		int buttonHeight = tv.getHeight();
-		ViewTreeObserver vto = tv.getViewTreeObserver();
-		vto.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-			@Override
-			public void onGlobalLayout() {
-				//vto.getViewTreeObserver().removeGlobalOnLayoutListener(this);
-				int width  = tv.getMeasuredWidth();
-				int height = tv.getMeasuredHeight();
-
-				ViewGroup.MarginLayoutParams vlp = (android.view.ViewGroup.MarginLayoutParams) tv.getLayoutParams();
-				int btnsize =tv.getMeasuredHeight()+vlp.topMargin;
-
-				int actualbuttonheight = tv.getHeight();
-
-				ViewTreeObserver obs = tv.getViewTreeObserver();
-				obs.removeOnGlobalLayoutListener(this);
-
-			}
-		});
-*/
-        //FrameLayout frameLayout = (FrameLayout) findViewById(R.id.container);
-        //frameLayout.setContentView
-        /////mGLSurfaceView = new MyGLSurfaceView(this);
 
 		mGLSurfaceView = (MyGLSurfaceView) findViewById(R.id.glSurfaceViewID);
 
@@ -761,86 +748,9 @@ public class MainActivity extends AppCompatActivity
 				.load(R.drawable.weakentroll_splash)
 				.into((ImageView)findViewById(R.id.weakentroll_splashview));
 
-		//this will post a message to the mHandler, which mHandler will get
-		//after 5 seconds
+		//this will post a message to the mHandler, which mHandler will get after 5 seconds
 		int FINISH_SPLASH = 7;
-		mHandler.sendEmptyMessageDelayed(FINISH_SPLASH, 5000);
-
-
-		// might need to use static multiplayerlistview
-		//////multiPlayerListView = (ListView)findViewById(R.id.multiPlayerList);
-
-
-
-
-        ////GLSurfaceView s = new GLSurfaceView(this);
-        //s.setRenderer(myGLRenderer);
-
-        //to add the view with your own parameters
-        ////linearView.addView(mGLSurfaceView,  new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-		/*LinearLayout ll = new LinearLayout(this);
-		Button newGame = new Button(this);
-		newGame.setText("New Game");
-		ll.addView(newGame);
-		Button loadGame = new Button(this);
-		loadGame.setText("Load Game");
-		ll.addView(loadGame);
-		Button highScores = new Button(this);
-		highScores.setText("High Scores");
-		ll.addView(highScores);
-		Button exitGame = new Button(this);
-		exitGame.setText("Exit Extreme 3D Pong");
-		ll.addView(exitGame);
-		ll.setOrientation(LinearLayout.VERTICAL);
-		ll.setGravity(/*Gravity.CENTER_HORIZONTAL |// / Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL);
-		this.addContentView(ll,
-				new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
-*/
-		/*ViewTreeObserver vto2 = mGLSurfaceView.getViewTreeObserver();
-		vto2.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-			@Override
-			public void onGlobalLayout() {
-				//vto.getViewTreeObserver().removeGlobalOnLayoutListener(this);
-				int width  = mGLSurfaceView.getMeasuredWidth();
-				int height = mGLSurfaceView.getMeasuredHeight();
-
-				ViewGroup.MarginLayoutParams vlp = (android.view.ViewGroup.MarginLayoutParams) mGLSurfaceView.getLayoutParams();
-				int btnsize = mGLSurfaceView.getMeasuredHeight()+vlp.topMargin;
-
-				int actualsurfaceviewheight = mGLSurfaceView.getHeight();
-
-				ViewTreeObserver obs = mGLSurfaceView.getViewTreeObserver();
-				obs.removeOnGlobalLayoutListener(this);
-
-			}
-		}); */
-
-		/*ViewTreeObserver vto3 = linearView.getViewTreeObserver();
-		vto3.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-			@Override
-			public void onGlobalLayout() {
-				//vto.getViewTreeObserver().removeGlobalOnLayoutListener(this);
-				int width  = linearView.getMeasuredWidth();
-				int height = linearView.getMeasuredHeight();
-
-				ViewGroup.MarginLayoutParams vlp = (android.view.ViewGroup.MarginLayoutParams) linearView.getLayoutParams();
-				int btnsize = linearView.getMeasuredHeight()+vlp.topMargin;
-
-				int actuallinearviewheight = linearView.getHeight();
-
-				ViewTreeObserver obs = linearView.getViewTreeObserver();
-				obs.removeOnGlobalLayoutListener(this);
-
-			}
-		}); */
-        ////setContentView(mGLSurfaceView);
-
-        //Toolbar myToolbar = (Toolbar) findViewById(R.id.my_toolbar);
-        //setSupportActionBar(myToolbar);
-
-		///new Thread(new ClientThread()).start();
-
+		mHandler.sendEmptyMessageDelayed(FINISH_SPLASH, 2000);
 	}
 
 	@Override
@@ -859,6 +769,88 @@ public class MainActivity extends AppCompatActivity
 		super.onPause();
 		mGLSurfaceView = (MyGLSurfaceView)findViewById(R.id.glSurfaceViewID);
 		mGLSurfaceView.onPause();
+	}
+
+	public void debug(View view) {
+		if (debugFlag == true) {
+			debugFlag = false;
+			mGLSurfaceView.getmRenderer().debugFlag = false;
+		}
+		else {
+			debugFlag = true;
+			mGLSurfaceView.getmRenderer().debugFlag = true;
+		}
+		}
+
+	public void sendPlayerMsg(View view) {
+		/*
+		type text or send 5 second audio msg
+
+		 */
+        mediarecorder = new MediaRecorder();
+        mediarecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mediarecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        mediarecorder.setOutputFile(mediafileName);
+        mediarecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+
+        try {
+            mediarecorder.prepare();
+        } catch (IOException e) {
+            //Log.e(TAG, "prepare() failed");
+        }
+
+        mediarecorder.start();
+
+
+        Timer timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+				mediarecorder.stop();
+				mediarecorder.release();
+				mediarecorder = null;
+
+				// send mediafilename to opponent
+				if (mLooperThread.mHandler != null) {
+					Message msg = mLooperThread.mHandler.obtainMessage(0);
+
+					JSONObject gameData = new JSONObject();
+
+					try {
+						gameData.put("msgType", "playmedia");
+					}
+					catch(JSONException ex) {
+						ex.printStackTrace();
+					}
+
+					msg.obj = gameData;
+
+					Bundle b = new Bundle();
+					byte[] mybytearray = new byte[(int) mediafileName.length()];
+					FileInputStream fis = null;
+
+					try {
+						fis = new FileInputStream(mediafileName);
+						fis.read(mybytearray);
+						fis.close();
+
+					}
+					catch (Exception e)
+					{
+						e.printStackTrace();
+					}
+					b.putByteArray("mediafile", mybytearray );
+					msg.setData(b);
+					mLooperThread.mHandler.sendMessage(msg);
+				}
+
+            }
+        }, 0, 5000);
+		//record
+
+
+
+		//send the data
 	}
 
     public void exitGame(View view) {
@@ -886,7 +878,7 @@ public class MainActivity extends AppCompatActivity
 					v.setVisibility(View.GONE);
 				}
                 dyn_layout.setOrientation(LinearLayout.VERTICAL);
-                dyn_layout.setGravity(Gravity.CENTER_VERTICAL );
+                dyn_layout.setGravity(Gravity.CENTER_VERTICAL|Gravity.CENTER_HORIZONTAL );
 
 				newGameButton.setVisibility(View.VISIBLE);
 				saveGameButton.setVisibility(View.VISIBLE);
@@ -897,9 +889,18 @@ public class MainActivity extends AppCompatActivity
         openMenuButton.setVisibility(View.VISIBLE);
         dyn_layout.addView(openMenuButton);
 
-		mGLSurfaceView.getmRenderer().setPlayerScore(0);
-		mGLSurfaceView.getmRenderer().setOpponentScore(0);
+        sendPlayerMsgButton.setVisibility(View.VISIBLE);
+
+		mGLSurfaceView.getmRenderer().player.setScore(0);
+		mGLSurfaceView.getmRenderer().opponent.setScore(0);
 		mGLSurfaceView.getmRenderer().gameMachine.Advance("Pong");
+
+        Timer timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                mGLSurfaceView.getmRenderer().moveComputer();                    }
+        }, 0, 200);
 	}
 
 	public void singlePlayer(View view) {
@@ -933,9 +934,9 @@ public class MainActivity extends AppCompatActivity
 	}
 
     public void multiPlayerLogin(View view) {
-		// try to connect to server
-		Message msgConnect = mLooperThread.mHandler.obtainMessage(2);
-		mLooperThread.mHandler.sendMessage(msgConnect);
+		// try to connect to server - not in use right now
+		// Message msgConnect = mLooperThread.mHandler.obtainMessage(2);
+		// mLooperThread.mHandler.sendMessage(msgConnect);
 
 		if (mLooperThread.mHandler != null) {
 			Message msg = mLooperThread.mHandler.obtainMessage(0);
@@ -1099,8 +1100,8 @@ public class MainActivity extends AppCompatActivity
 
 			try {
 				gameData.put("username", username);
-				gameData.put("playerScore", mGLSurfaceView.getmRenderer().getPlayerScore());
-				gameData.put("opponentScore", mGLSurfaceView.getmRenderer().getOpponentScore());
+				gameData.put("playerScore", mGLSurfaceView.getmRenderer().player.getScore());
+				gameData.put("opponentScore", mGLSurfaceView.getmRenderer().opponent.getScore());
 
 			}
 			catch(JSONException ex) {
@@ -1122,11 +1123,6 @@ public class MainActivity extends AppCompatActivity
 		}
 	}
 
-	public void challengeMultiplayer(View view) {
-		System.out.println("challenge button clicked: ");
-
-	}
-
 		// TODO: The socket class cant be used in the main thread where the android UI resides, so it needs to move it into a new thread
 	/** Called when the user clicks the Send button
 	 *  Wait until the data reply packet is full before parsing it */
@@ -1143,9 +1139,8 @@ public class MainActivity extends AppCompatActivity
 			try {
 				gameData.put("msgType", "saveGame");
 				gameData.put("username", username);
-				gameData.put("playerScore", mGLSurfaceView.getmRenderer().getPlayerScore());
-				gameData.put("opponentScore", mGLSurfaceView.getmRenderer().getOpponentScore());
-
+				gameData.put("playerScore", mGLSurfaceView.getmRenderer().player.getScore());
+				gameData.put("opponentScore", mGLSurfaceView.getmRenderer().opponent.getScore());
 			}
 			catch(JSONException ex) {
 				ex.printStackTrace();
@@ -1154,70 +1149,10 @@ public class MainActivity extends AppCompatActivity
             msg.obj = gameData;
 			mLooperThread.mHandler.sendMessage(msg);
 		}
-
-		/*
-        int testport = echoSocket.getLocalPort();
-
-		////try (
-				// = new Socket(hostName, portNumber);
-				PrintWriter out =
-						new PrintWriter(echoSocket.getOutputStream(), true);
-				BufferedReader in =
-						new BufferedReader(
-								new InputStreamReader(echoSocket.getInputStream()));
-				BufferedReader stdIn =
-						new BufferedReader(
-								new InputStreamReader(System.in))
-		) {////
-			String userInput;
-			String username = new String("discmanx");
-			JSONObject gameData = new JSONObject();
-
-			try {
-				gameData.put("username", username);
-				gameData.put("playerScore", mGLSurfaceView.getmRenderer().getPlayerScore());
-				gameData.put("opponentScore", mGLSurfaceView.getmRenderer().getOpponentScore());
-
-			}
-			catch(JSONException ex) {
-				ex.printStackTrace();
-			}
-
-			//while ((userInput = stdIn.readLine()) != null) {
-			System.out.println("testpoint 1");
-            nc.sendDataWithString(gameData.toString());
-			//////out.println(gameData);
-            System.out.println("testpoint 2");
-            String r = nc.receiveDataFromServer();
-
-            //////serverMsg = in.readLine(); // Print the reply readline size to test the max bytes each reply can send and if its enough to execute next code step
-			System.out.println("testpoint 3 echo: " + serverMsg);
-			//}
-		/*} catch (UnknownHostException e) {
-			System.err.println("Don't know about host " + hostName);
-			System.exit(1);
-		} catch (IOException e) {
-			System.err.println("Couldn't get I/O for the connection to " +
-					hostName);
-			System.exit(1);
-		}*/
 	}
 
-	/*private class UpdateMultiListView extends AsyncTask<String, Void, String> {
-		@Override
-		protected String doInBackground(String... params) {
-			String url = params[0];
-			return doSomeWork(url);
-		}
-	}*/
-
 	private void doLongRunningOperation(Message msg) {
-		// Add long running operation here.
-
 		// If no connection to server
-
-
-			//available.acquire();
 		if (nc.connectWithServer() == false)
 		{
 			Message msg1 = new Message();
@@ -1225,42 +1160,10 @@ public class MainActivity extends AppCompatActivity
 			msg1.setTarget(mHandler);
 			msg1.sendToTarget();
 			return;
-			//displayMessage("Error connecting to server.", "Ok", "main");
 		}
-
 		nc.sendDataWithString(msg.obj.toString());
 		System.out.println(msg.obj.toString());
-
-
 	}
-	/*
-	class ClientThread implements Runnable {
-
-		//System.out.println("reached thread run() 0");
-
-		@Override
-		public void run() {
-
-			System.out.println("reached thread run() 1");
-			//try {
-                nc = new NetClient(hostName, portNumber, null); //mac address not used
-
-                //InetAddress serverAddr = InetAddress.getByName(SERVER_IP);
-				///System.out.println("reached thread run() 2");
-				///echoSocket = new Socket(hostName, portNumber);
-				///System.out.println("reached thread run() 3");
-
-			/*} catch (UnknownHostException e1) {
-				System.out.println("reached thread run() 4");
-				e1.printStackTrace();
-				Log.e("YOUR_APP_LOG_TAG", "I got an UnknownHostException error", e1);
-			} catch (IOException e1) {
-				System.out.println("reached thread run() 5");
-				e1.printStackTrace();
-				Log.e("YOUR_APP_LOG_TAG", "I got an IOException error", e1);
-			}
-		}
-	} */
 
 	protected void onDestroy() {
         super.onDestroy();
@@ -1313,7 +1216,6 @@ public class MainActivity extends AppCompatActivity
 			multiUsername = username;
 			multiId = id;
 			multiScore = score;
-
 		}
 
 		public String getMultiUsername() {
@@ -1337,7 +1239,6 @@ public class MainActivity extends AppCompatActivity
 			public void onClick(View v) {
 				// menu to navigate to
 				switch (menuLevel) {
-
 					case "current": display_msg_layout.setVisibility(View.GONE);
 						return;
 					case "back": display_msg_layout.setVisibility(View.GONE); //dyn_layout.removeView(display_msg_layout);
@@ -1347,11 +1248,6 @@ public class MainActivity extends AppCompatActivity
 			}
 		});
 		display_msg_layout.setVisibility(View.VISIBLE);
-
-	}
-
-	public void handleTouchPoints() {
-
 	}
 
 	@Override
@@ -1387,6 +1283,20 @@ public class MainActivity extends AppCompatActivity
 				View.SYSTEM_UI_FLAG_LAYOUT_STABLE
 						| View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
 						| View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+	}
+
+	@Override
+	public void onStop() {
+		super.onStop();
+		if (mediarecorder != null) {
+			mediarecorder.release();
+			mediarecorder = null;
+		}
+
+		if (mediaplayer != null) {
+			mediaplayer.release();
+			mediaplayer = null;
+		}
 	}
 
 }

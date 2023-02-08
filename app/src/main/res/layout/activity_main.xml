@@ -10,7 +10,18 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent" />
 
-
+    <Button
+        android:id="@+id/debug"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="debug"
+        android:text="Debug ..."
+        android:background="@drawable/button_background"
+        android:width="150px"
+        android:visibility="visible"
+        android:layout_alignParentRight="true"
+        android:layout_margin="20px"/>
 
     <LinearLayout
         android:id="@+id/dyn_layout"
@@ -91,6 +102,15 @@
             android:layout_height="wrap_content"
             android:onClick="backMenu"
             android:text="Back"
+            android:visibility="gone"/>
+
+        <Button
+            android:id="@+id/sendPlayerMsg"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="sendPlayerMsg"
+            android:text="Send Msg"
             android:visibility="gone"/>
 
 

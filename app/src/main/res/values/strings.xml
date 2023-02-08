@@ -2,8 +2,6 @@
 <resources>
 
     <string name="app_name">Pong Demo by Ryan Baldwin!</string>
-    <string name="hello_world">Hello world!</string>
-    <string name="action_settings">Settings</string>
     <string name="multiplayer_username_label">Username: </string>
     <string name="multiplayer_password_label">Password: </string>
     <string name="create_multiplayer_password_confirm_label">Confirm Password: </string>

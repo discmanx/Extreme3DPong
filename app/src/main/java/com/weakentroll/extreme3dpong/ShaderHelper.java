@@ -3,6 +3,15 @@ package com.weakentroll.extreme3dpong;
 import android.opengl.GLES20;
 import android.util.Log;
 
+import static android.opengl.GLES20.GL_FRAGMENT_SHADER;
+import static android.opengl.GLES20.GL_LINK_STATUS;
+import static android.opengl.GLES20.GL_VERTEX_SHADER;
+import static android.opengl.GLES20.glAttachShader;
+import static android.opengl.GLES20.glCreateProgram;
+import static android.opengl.GLES20.glDeleteProgram;
+import static android.opengl.GLES20.glGetProgramiv;
+import static android.opengl.GLES20.glLinkProgram;
+
 public class ShaderHelper
 {
 	private static final String TAG = "ShaderHelper";
@@ -57,15 +66,15 @@ public class ShaderHelper
 	 */
 	public static int createAndLinkProgram(final int vertexShaderHandle, final int fragmentShaderHandle, final String[] attributes) 
 	{
-		int programHandle = GLES20.glCreateProgram();
+		int programHandle = glCreateProgram();
 		
 		if (programHandle != 0) 
 		{
 			// Bind the vertex shader to the program.
-			GLES20.glAttachShader(programHandle, vertexShaderHandle);			
+			glAttachShader(programHandle, vertexShaderHandle);
 
 			// Bind the fragment shader to the program.
-			GLES20.glAttachShader(programHandle, fragmentShaderHandle);
+			glAttachShader(programHandle, fragmentShaderHandle);
 			
 			// Bind attributes
 			if (attributes != null)
@@ -78,17 +87,17 @@ public class ShaderHelper
 			}
 			
 			// Link the two shaders together into a program.
-			GLES20.glLinkProgram(programHandle);
+			glLinkProgram(programHandle);
 
 			// Get the link status.
 			final int[] linkStatus = new int[1];
-			GLES20.glGetProgramiv(programHandle, GLES20.GL_LINK_STATUS, linkStatus, 0);
+			glGetProgramiv(programHandle, GL_LINK_STATUS, linkStatus, 0);
 
 			// If the link failed, delete the program.
 			if (linkStatus[0] == 0) 
 			{				
 				Log.e(TAG, "Error compiling program: " + GLES20.glGetProgramInfoLog(programHandle));
-				GLES20.glDeleteProgram(programHandle);
+				glDeleteProgram(programHandle);
 				programHandle = 0;
 			}
 		}
@@ -100,4 +109,44 @@ public class ShaderHelper
 		
 		return programHandle;
 	}
+
+    public static int linkProgram(int vertexShaderId, int fragmentShaderId) {
+        final int programObjectId = glCreateProgram();
+        if (programObjectId == 0) {
+
+            return 0;
+        }
+        glAttachShader(programObjectId, vertexShaderId);
+        glAttachShader(programObjectId, fragmentShaderId);
+
+        glLinkProgram(programObjectId);
+        final int[] linkStatus = new int[1];
+        glGetProgramiv(programObjectId, GL_LINK_STATUS, linkStatus, 0);
+
+        if (linkStatus[0] == 0) {
+// If it failed, delete the program object.
+            glDeleteProgram(programObjectId);
+            return 0;
+        }
+        return programObjectId;
+    }
+
+    public static int buildProgram(String vertexShaderSource,
+                                   String fragmentShaderSource) {
+        int program;
+// Compile the shaders.
+        int vertexShader = compileVertexShader(vertexShaderSource);
+        int fragmentShader = compileFragmentShader(fragmentShaderSource);
+// Link them into a shader program.
+        program = linkProgram(vertexShader, fragmentShader);
+
+        return program;
+    }
+
+    public static int compileVertexShader(String shaderCode) {
+        return compileShader(GL_VERTEX_SHADER, shaderCode);
+    }
+    public static int compileFragmentShader(String shaderCode) {
+        return compileShader(GL_FRAGMENT_SHADER, shaderCode);
+    }
 }

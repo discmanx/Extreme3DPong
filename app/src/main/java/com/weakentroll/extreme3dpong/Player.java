@@ -62,6 +62,7 @@ public class Player {
     private float locationX, locationY, locationZ;
     private int highScore;
 
+
     public void setLocation(float X, float Y, float Z) {
         locationX = X;
         locationY = Y;

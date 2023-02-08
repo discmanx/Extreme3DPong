@@ -107,20 +107,31 @@ public class NetClient implements Runnable {
     }
 
     public void disConnectWithServer() {
-        if (socket != null) {
-            if (socket.isConnected()) {
-                try {
-                    in.close();
-                    out.close();
-                    socket.close();
-                    in = null;
-                    out = null;
-                    socket = null;
-                    serverUp = false;
-                } catch (IOException e) {
-                    e.printStackTrace();
+        try {
+            available.acquire();
+
+            if (socket != null) {
+
+                if (socket.isConnected()) {
+
+                    try {
+                        in.close();
+                        out.close();
+                        socket.close();
+                        //in = null; be careful when connecting() again that in and out arent empty
+                        //out = null;
+                        socket = null;
+                        serverUp = false;
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
+            available.release();
+        }
+        catch ( InterruptedException e) {
+            //available.release();
+            e.printStackTrace();
         }
     }
 
